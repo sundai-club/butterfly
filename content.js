@@ -101,11 +101,11 @@ function extractPostInfo(postElement) {
 }
 
 // Update getGeminiSuggestion to accept both postText and postAuthor
-async function getGeminiSuggestion(postText, postAuthor) {
-  console.log('Gemini suggestion request:', { postText, postAuthor });
+async function getGeminiSuggestion(postText, postAuthor, refinement = '') {
+  console.log('Gemini suggestion request:', { postText, postAuthor, refinement });
   // Send message to background for Gemini API call
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor }, (response) => {
+    chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor, refinement }, (response) => {
       resolve(response && response.suggestion);
     });
   });
@@ -215,7 +215,7 @@ function debounce(func, wait) {
     }
     box.setAttribute(FILLED_ATTR, '1');
 
-    // Add Re-generate button if not present
+    // Add Re-generate and Refine buttons if not present
     if (!box.parentElement.querySelector('.butterfly-regenerate-btn')) {
       const btn = document.createElement('button');
       btn.textContent = 'Regenerate';
@@ -246,11 +246,46 @@ function debounce(func, wait) {
         btn.disabled = false;
         btn.textContent = 'Regenerate';
       };
+      // Refine button
+      const refineBtn = document.createElement('button');
+      refineBtn.textContent = 'Refine';
+      refineBtn.className = 'butterfly-refine-btn';
+      refineBtn.style.marginLeft = '8px';
+      refineBtn.style.marginTop = '4px';
+      refineBtn.style.padding = '2px 8px';
+      refineBtn.style.fontSize = '12px';
+      refineBtn.style.cursor = 'pointer';
+      refineBtn.style.background = '#4B0082';
+      refineBtn.style.color = 'white';
+      refineBtn.style.border = 'none';
+      refineBtn.style.borderRadius = '4px';
+      refineBtn.onclick = async () => {
+        const instructions = prompt('How would you like to refine the reply? (Add extra instructions)');
+        if (!instructions) return;
+        refineBtn.disabled = true;
+        refineBtn.textContent = 'Refining...';
+        const { postText, postAuthor } = extractPostInfo(postElement);
+        // Do not change postText, pass refinement as a separate argument
+        const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions);
+        if (newSuggestion) {
+          if (box.isContentEditable) {
+            box.innerText = newSuggestion;
+            box.dispatchEvent(new Event('input', { bubbles: true }));
+          } else {
+            box.value = newSuggestion;
+            box.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+        refineBtn.disabled = false;
+        refineBtn.textContent = 'Refine';
+      };
       // Insert after the comment box
       if (box.nextSibling) {
         box.parentElement.insertBefore(btn, box.nextSibling);
+        box.parentElement.insertBefore(refineBtn, btn.nextSibling);
       } else {
         box.parentElement.appendChild(btn);
+        box.parentElement.appendChild(refineBtn);
       }
     }
   }

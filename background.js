@@ -2,7 +2,7 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GEMINI_SUGGEST') {
-    const { postText, postAuthor } = message;
+    const { postText, postAuthor, refinement } = message;
     // Get API key from storage
     chrome.storage.sync.get(['geminiApiKey'], (result) => {
       const apiKey = result.geminiApiKey;
@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       // Call async function outside of the callback, use .then/.catch
-      fetchGeminiSuggestion(postText, postAuthor, apiKey)
+      fetchGeminiSuggestion(postText, postAuthor, apiKey, refinement)
         .then((suggestion) => {
           sendResponse({ suggestion });
         })
@@ -24,11 +24,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function fetchGeminiSuggestion(postText, postAuthor, apiKey) {
+// Update fetchGeminiSuggestion to accept refinement
+async function fetchGeminiSuggestion(postText, postAuthor, apiKey, refinement = '') {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
   // Updated prompt to return only the final, professional comment
+  let prompt = `Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment—do not include options, explanations, formatting,or any extra text. Include author's name to the comment. Author: "${postAuthor}". Post: "${postText}"`;
+  if (refinement && refinement.trim()) {
+    prompt += `\n\nRefinement instructions: ${refinement}`;
+  }
   const body = JSON.stringify({
-    contents: [{ parts: [{ text: `Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment—do not include options, explanations, or any extra text. Include author's name to the comment. Author: "${postAuthor}". Post: "${postText}"` }] }]
+    contents: [{ parts: [{ text: prompt }] }]
   });
   const res = await fetch(url, {
     method: 'POST',
