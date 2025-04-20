@@ -2,7 +2,7 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GEMINI_SUGGEST') {
-    const { postText, postAuthor, refinement } = message;
+    const { postText, postAuthor, refinement, currentComment } = message;
     // Get API key from storage
     chrome.storage.sync.get(['geminiApiKey'], (result) => {
       const apiKey = result.geminiApiKey;
@@ -10,8 +10,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ suggestion: 'Set Gemini API key in extension settings.' });
         return;
       }
-      // Call async function outside of the callback, use .then/.catch
-      fetchGeminiSuggestion(postText, postAuthor, apiKey, refinement)
+      // Pass currentComment to fetchGeminiSuggestion
+      fetchGeminiSuggestion(postText, postAuthor, apiKey, refinement, currentComment)
         .then((suggestion) => {
           sendResponse({ suggestion });
         })
@@ -24,13 +24,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Update fetchGeminiSuggestion to accept refinement
-async function fetchGeminiSuggestion(postText, postAuthor, apiKey, refinement = '') {
+// Update fetchGeminiSuggestion to accept refinement and currentComment
+async function fetchGeminiSuggestion(postText, postAuthor, apiKey, refinement = '', currentComment = '') {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
-  // Updated prompt to return only the final, professional comment
-  let prompt = `Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment—do not include options, explanations, formatting,or any extra text. Include author's name to the comment. Author: "${postAuthor}". Post: "${postText}"`;
+  // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
+  let prompt = `Post author: "${postAuthor}"
+Post content: "${postText}"`;
+  if (currentComment && currentComment.trim()) {
+    prompt += `\nCurrent comment: ${currentComment}`;
+  }
   if (refinement && refinement.trim()) {
-    prompt += `\n\nRefinement instructions: ${refinement}`;
+    prompt += `\nRefinement instructions: ${refinement}`;
+  }
+  if (currentComment && currentComment.trim()) {
+    prompt += `\n\nRefine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text.`;
+  } else {
+    prompt += `\n\nWrite a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.`;
   }
   const body = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }]

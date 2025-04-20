@@ -100,12 +100,12 @@ function extractPostInfo(postElement) {
   return { postText, postAuthor };
 }
 
-// Update getGeminiSuggestion to accept both postText and postAuthor
-async function getGeminiSuggestion(postText, postAuthor, refinement = '') {
-  console.log('Gemini suggestion request:', { postText, postAuthor, refinement });
+// Update getGeminiSuggestion to accept both postText, postAuthor, refinement, and currentComment
+async function getGeminiSuggestion(postText, postAuthor, refinement = '', currentComment = '') {
+  console.log('Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
   // Send message to background for Gemini API call
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor, refinement }, (response) => {
+    chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor, refinement, currentComment }, (response) => {
       resolve(response && response.suggestion);
     });
   });
@@ -262,11 +262,13 @@ function debounce(func, wait) {
       refineBtn.onclick = async () => {
         const instructions = prompt('How would you like to refine the reply? (Add extra instructions)');
         if (!instructions) return;
+        // Get the current value of the comment box
+        let currentComment = box.isContentEditable ? box.innerText : box.value;
         refineBtn.disabled = true;
         refineBtn.textContent = 'Refining...';
         const { postText, postAuthor } = extractPostInfo(postElement);
-        // Do not change postText, pass refinement as a separate argument
-        const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions);
+        // Pass instructions and currentComment as separate arguments
+        const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
         if (newSuggestion) {
           if (box.isContentEditable) {
             box.innerText = newSuggestion;
