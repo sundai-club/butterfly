@@ -9,9 +9,9 @@ AI-powered comment suggestions for LinkedIn posts using Google Gemini API.
 - API key is stored securely in extension settings.
 
 ## Setup
-1. Get a Google Gemini API key (https://aistudio.google.com/app/apikey).
-2. Clone/download this repo.
-3. Go to Chrome Extensions (`chrome://extensions`), enable Developer mode, and load this folder as an unpacked extension.
+1. Clone/download this repo (https://github.com/sundai-club/butterfly/archive/refs/heads/main.zip).
+2. Go to Chrome Extensions (`chrome://extensions`), enable Developer mode, and load this folder as an unpacked extension.
+3. Get a Google Gemini API key (https://aistudio.google.com/app/apikey).
 4. Click the Butterfly icon in Chrome toolbar, and enter your Gemini API key.
 
 ## Notes
