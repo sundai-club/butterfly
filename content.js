@@ -113,7 +113,7 @@ async function getGeminiSuggestion(postText, postAuthor) {
 
 function scanAndInject() {
   const posts = document.querySelectorAll('[data-urn], .feed-shared-update-v2');
-  posts.forEach(injectButterflyUI);
+  // posts.forEach(injectButterflyUI);
 }
 
 // --- SPA Navigation & Robust Observer Fix ---
@@ -166,3 +166,116 @@ setInterval(() => {
   observeFeed();
 }, 2000);
 // --- End SPA Fix ---
+
+// Debounce utility (per instance)
+function debounce(func, wait) {
+  const timeouts = new WeakMap();
+  return function debounced(node, ...args) {
+    if (timeouts.has(node)) {
+      clearTimeout(timeouts.get(node));
+    }
+    timeouts.set(node, setTimeout(() => {
+      func.call(this, node, ...args);
+      timeouts.delete(node);
+    }, wait));
+  };
+}
+
+// --- Auto-fill LinkedIn comment fields as soon as they appear ---
+(function autoFillLinkedInComments() {
+  const COMMENT_SELECTORS = [
+    '.comments-comment-box__editor',
+    '.ql-editor[contenteditable="true"]',
+    'textarea[aria-label="Add a comment…"]',
+    'textarea[aria-label="Add a comment..."]',
+    'textarea[name="comment"]',
+  ];
+  const FILLED_ATTR = 'data-butterfly-filled';
+
+  // Helper to find the post element from a comment box
+  function findPostElementFromCommentBox(box) {
+    // Try to find the closest LinkedIn post container
+    return box.closest('.feed-shared-update-v2, .scaffold-finite-scroll__content, .update-components-update, article');
+  }
+
+  async function fillCommentBox(box) {
+    if (box.getAttribute(FILLED_ATTR)) return;
+    const postElement = findPostElementFromCommentBox(box);
+    if (!postElement) return;
+    const { postText, postAuthor } = extractPostInfo(postElement);
+    const suggestion = await getGeminiSuggestion(postText, postAuthor);
+    if (!suggestion) return;
+    // For contenteditable (divs)
+    if (box.isContentEditable) {
+      box.innerText = suggestion;
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      box.value = suggestion;
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    box.setAttribute(FILLED_ATTR, '1');
+
+    // Add Re-generate button if not present
+    if (!box.parentElement.querySelector('.butterfly-regenerate-btn')) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Regenerate';
+      btn.className = 'butterfly-regenerate-btn';
+      btn.style.marginLeft = '8px';
+      btn.style.marginTop = '4px';
+      btn.style.padding = '2px 8px';
+      btn.style.fontSize = '12px';
+      btn.style.cursor = 'pointer';
+      btn.style.background = '#8A2BE2';
+      btn.style.color = 'white';
+      btn.style.border = 'none';
+      btn.style.borderRadius = '4px';
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = 'Generating...';
+        const { postText, postAuthor } = extractPostInfo(postElement);
+        const newSuggestion = await getGeminiSuggestion(postText, postAuthor);
+        if (newSuggestion) {
+          if (box.isContentEditable) {
+            box.innerText = newSuggestion;
+            box.dispatchEvent(new Event('input', { bubbles: true }));
+          } else {
+            box.value = newSuggestion;
+            box.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+        btn.disabled = false;
+        btn.textContent = 'Regenerate';
+      };
+      // Insert after the comment box
+      if (box.nextSibling) {
+        box.parentElement.insertBefore(btn, box.nextSibling);
+      } else {
+        box.parentElement.appendChild(btn);
+      }
+    }
+  }
+
+  async function scanAndFill() {
+    // Debounced fill per comment box
+    if (!window._butterflyDebouncedFill) {
+      window._butterflyDebouncedFill = new WeakMap();
+    }
+    for (const sel of COMMENT_SELECTORS) {
+      const boxes = document.querySelectorAll(sel);
+      for (const box of boxes) {
+        let debounced = window._butterflyDebouncedFill.get(box);
+        if (!debounced) {
+          debounced = debounce(fillCommentBox, 100).bind(this, box);
+          window._butterflyDebouncedFill.set(box, debounced);
+        }
+        debounced();
+      }
+    }
+  }
+
+  // Observe DOM changes for new comment boxes
+  const observer = new MutationObserver(scanAndFill);
+  observer.observe(document.body, { childList: true, subtree: true });
+  // Initial fill
+  scanAndFill();
+})();
