@@ -4,8 +4,8 @@ document.getElementById('save-btn').onclick = function () {
   const key = document.getElementById('api-key').value.trim();
   const model = document.getElementById('model-picker').value;
   chrome.storage.sync.set({ geminiApiKey: key, geminiModel: model }, () => {
-    document.getElementById('status').textContent = 'Saved!';
-    setTimeout(() => { document.getElementById('status').textContent = ''; }, 1500);
+    document.getElementById('save-btn').textContent = 'Saved!';
+    setTimeout(() => { document.getElementById('save-btn').textContent = 'Save'; }, 1500);
     showKeyPreview(key);
   });
 };

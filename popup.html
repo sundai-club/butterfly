@@ -4,46 +4,26 @@
 <head>
   <title>Butterfly Settings</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    body {
-      font-family: sans-serif;
-      min-width: 250px;
-      padding: 16px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-    }
-
-    input {
-      width: 100%;
-      padding: 6px;
-      margin-bottom: 10px;
-    }
-
-    button {
-      width: 100%;
-      padding: 8px;
-    }
-  </style>
 </head>
 
 <body>
-  <h2>Butterfly Settings</h2>
-  <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank">Google Gemini API Key:</a></label>
-  <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
-  <div id="api-key-preview" style="font-size:12px;color:#666;margin-bottom:10px;"></div>
-  <label for="model-picker">Model:</label>
-  <select id="model-picker">
-    <option value="gemini-2.0-flash">gemini-2.0-flash (default)</option>
-    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-    <option value="gemini-2.5-pro-exp-03-25">gemini-2.5-pro-exp-03-25</option>
-    <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
-  </select>
-  <button id="save-btn" style="margin: 8px 0;">Save</button>
-  <div id="status"></div>
-  <script src="popup.js"></script>
+  <div class="popup-container">
+    <h2>Butterfly Settings</h2>
+    <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank"
+        style="color:var(--button-text);">Google Gemini API Key:</a></label>
+    <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
+    <div id="api-key-preview" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
+    <label for="model-picker">Model:</label>
+    <select id="model-picker">
+      <option value="gemini-2.0-flash">gemini-2.0-flash (default)</option>
+      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+      <option value="gemini-2.5-pro-exp-03-25">gemini-2.5-pro-exp-03-25</option>
+      <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
+    </select>
+    <button id="save-btn" style="margin: 8px 0;">Save</button>
+    <div id="status"></div>
+    <script src="popup.js"></script>
+  </div>
 </body>
 
 </html>

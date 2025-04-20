@@ -1,3 +1,4 @@
+/* === Existing Butterfly Styles === */
 .butterfly-container {
   background: #f3f6fb;
   border: 1px solid #d0d7de;
@@ -77,4 +78,131 @@
   color: white;
   border: none;
   border-radius: 4px;
+}
+
+/* === Popup Theming and Modern Styles === */
+:root {
+  --background: #fff;
+  --foreground: #f3f6fb;
+  --border: #d0d7de;
+  --text: #222;
+  --text-muted: #666;
+  --input-bg: #f5f8fa;
+  --input-border: #b0b8c1;
+  --button-bg: #0a66c2;
+  --button-bg-alt: #34a853;
+  --button-text: #fff;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #181a1b;
+    --foreground: #23272e;
+    --border: #343a40;
+    --text: #f5f6fa;
+    --text-muted: #aaa;
+    --input-bg: #23272e;
+    --input-border: #444b53;
+    --button-bg: #2563eb;
+    --button-bg-alt: #43b97f;
+    --button-text: #fff;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #fff;
+    --foreground: #f3f6fb;
+    --border: #d0d7de;
+    --text: #222;
+    --text-muted: #666;
+    --input-bg: #f5f8fa;
+    --input-border: #b0b8c1;
+    --button-bg: #0a66c2;
+    --button-bg-alt: #34a853;
+    --button-text: #fff;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
+body,
+.popup-container {
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+  background: var(--background);
+  color: var(--text);
+  min-width: 270px;
+  margin: 0;
+  padding: 0;
+}
+
+.popup-container {
+  background: var(--foreground);
+  box-shadow: var(--shadow);
+  padding: 22px 18px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popup-container h2 {
+  font-size: 1.22em;
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.popup-container label {
+  font-size: 0.98em;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.popup-container input,
+.popup-container select {
+  padding: 7px 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 1em;
+  transition: border 0.2s;
+}
+
+.popup-container input:focus,
+.popup-container select:focus {
+  border-color: var(--button-bg);
+  outline: none;
+}
+
+.popup-container button {
+  width: 100%;
+  padding: 10px 0;
+  border-radius: 6px;
+  border: none;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 0.2s;
+}
+
+.popup-container button:hover {
+  background: var(--button-bg-alt);
+}
+
+#api-key-preview {
+  font-size: 0.88em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+#status {
+  font-size: 0.98em;
+  margin-top: 8px;
+  color: var(--text-muted);
 }
