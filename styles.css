@@ -1,0 +1,38 @@
+.butterfly-container {
+  background: #f3f6fb;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  margin: 10px 0 0 0;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.butterfly-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.butterfly-textarea {
+  width: 100%;
+  min-height: 40px;
+  resize: vertical;
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #b0b8c1;
+  font-size: 14px;
+}
+.butterfly-generate, .butterfly-post {
+  margin-top: 2px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  background: #0a66c2;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+.butterfly-generate {
+  background: #0a66c2;
+}
+.butterfly-post {
+  background: #34a853;
+}
