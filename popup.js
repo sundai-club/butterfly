@@ -2,19 +2,22 @@
 
 document.getElementById('save-btn').onclick = function () {
   const key = document.getElementById('api-key').value.trim();
-  chrome.storage.sync.set({ geminiApiKey: key }, () => {
+  const model = document.getElementById('model-picker').value;
+  chrome.storage.sync.set({ geminiApiKey: key, geminiModel: model }, () => {
     document.getElementById('status').textContent = 'Saved!';
     setTimeout(() => { document.getElementById('status').textContent = ''; }, 1500);
     showKeyPreview(key);
   });
 };
 
-// Load existing key
-chrome.storage.sync.get(['geminiApiKey'], (result) => {
+// Load existing key and model
+chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
   if (result.geminiApiKey) {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
+  // Set model picker, default to gemini-2.0-flash
+  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.0-flash';
 });
 
 document.getElementById('api-key').addEventListener('input', function () {

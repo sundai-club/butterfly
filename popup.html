@@ -34,8 +34,15 @@
   <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank">Google Gemini API Key:</a></label>
   <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
   <div id="api-key-preview" style="font-size:12px;color:#666;margin-bottom:10px;"></div>
-  <button id="save-btn">Save</button>
-  <div id="status" style="margin-top: 8px;"></div>
+  <label for="model-picker">Model:</label>
+  <select id="model-picker">
+    <option value="gemini-2.0-flash">gemini-2.0-flash (default)</option>
+    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+    <option value="gemini-2.5-pro-exp-03-25">gemini-2.5-pro-exp-03-25</option>
+    <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
+  </select>
+  <button id="save-btn" style="margin: 8px 0;">Save</button>
+  <div id="status"></div>
   <script src="popup.js"></script>
 </body>
 

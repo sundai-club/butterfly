@@ -4,13 +4,15 @@
   border-radius: 8px;
   margin: 10px 0 0 0;
   padding: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
+
 .butterfly-suggestion {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .butterfly-textarea {
   width: 100%;
   min-height: 40px;
@@ -20,7 +22,9 @@
   border: 1px solid #b0b8c1;
   font-size: 14px;
 }
-.butterfly-generate, .butterfly-post {
+
+.butterfly-generate,
+.butterfly-post {
   margin-top: 2px;
   padding: 6px 10px;
   border-radius: 4px;
@@ -30,9 +34,47 @@
   cursor: pointer;
   font-size: 14px;
 }
+
 .butterfly-generate {
   background: #0a66c2;
 }
+
 .butterfly-post {
   background: #34a853;
+}
+
+.butterfly-regenerate-btn {
+  margin-left: 0px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #8A2BE2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+.butterfly-refine-btn {
+  margin-left: 8px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #4B0082;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+.butterfly-post-btn {
+  margin-left: 8px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #FF6347;
+  color: white;
+  border: none;
+  border-radius: 4px;
 }

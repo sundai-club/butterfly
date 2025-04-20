@@ -137,15 +137,6 @@ const butterflyLastFillTime = new WeakMap();
       const regenerateBtn = document.createElement('button');
       regenerateBtn.textContent = 'Regenerate';
       regenerateBtn.className = 'butterfly-regenerate-btn';
-      regenerateBtn.style.marginLeft = '8px';
-      regenerateBtn.style.marginTop = '4px';
-      regenerateBtn.style.padding = '2px 8px';
-      regenerateBtn.style.fontSize = '12px';
-      regenerateBtn.style.cursor = 'pointer';
-      regenerateBtn.style.background = '#8A2BE2';
-      regenerateBtn.style.color = 'white';
-      regenerateBtn.style.border = 'none';
-      regenerateBtn.style.borderRadius = '4px';
       regenerateBtn.onclick = async () => {
         regenerateBtn.disabled = true;
         regenerateBtn.textContent = 'Generating...';
@@ -167,15 +158,6 @@ const butterflyLastFillTime = new WeakMap();
       const refineBtn = document.createElement('button');
       refineBtn.textContent = 'Refine';
       refineBtn.className = 'butterfly-refine-btn';
-      refineBtn.style.marginLeft = '8px';
-      refineBtn.style.marginTop = '4px';
-      refineBtn.style.padding = '2px 8px';
-      refineBtn.style.fontSize = '12px';
-      refineBtn.style.cursor = 'pointer';
-      refineBtn.style.background = '#4B0082';
-      refineBtn.style.color = 'white';
-      refineBtn.style.border = 'none';
-      refineBtn.style.borderRadius = '4px';
       refineBtn.onclick = async () => {
         refineBtn.disabled = true;
         refineBtn.textContent = 'Refining...';
@@ -200,30 +182,21 @@ const butterflyLastFillTime = new WeakMap();
         refineBtn.textContent = 'Refine';
       };
       // Fake button
-      const fakeBtn = document.createElement('button');
-      fakeBtn.textContent = 'Post';
-      fakeBtn.className = 'butterfly-fake-btn';
-      fakeBtn.style.marginLeft = '8px';
-      fakeBtn.style.marginTop = '4px';
-      fakeBtn.style.padding = '2px 8px';
-      fakeBtn.style.fontSize = '12px';
-      fakeBtn.style.cursor = 'pointer';
-      fakeBtn.style.background = '#FF6347';
-      fakeBtn.style.color = 'white';
-      fakeBtn.style.border = 'none';
-      fakeBtn.style.borderRadius = '4px';
-      fakeBtn.onclick = () => {
+      const postBtn = document.createElement('button');
+      postBtn.textContent = 'Post';
+      postBtn.className = 'butterfly-post-btn';
+      postBtn.onclick = () => {
         box.dispatchEvent(new Event('input', { bubbles: true }));
       };
       // Insert after the comment box
       if (box.nextSibling) {
         box.parentElement.insertBefore(regenerateBtn, box.nextSibling);
         box.parentElement.insertBefore(refineBtn, regenerateBtn.nextSibling);
-        box.parentElement.insertBefore(fakeBtn, refineBtn.nextSibling);
+        box.parentElement.insertBefore(postBtn, refineBtn.nextSibling);
       } else {
         box.parentElement.appendChild(regenerateBtn);
         box.parentElement.appendChild(refineBtn);
-        box.parentElement.appendChild(fakeBtn);
+        box.parentElement.appendChild(postBtn);
       }
     }
   }
