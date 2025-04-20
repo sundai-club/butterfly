@@ -95,19 +95,8 @@ setInterval(() => {
 }, 2000);
 // --- End SPA Fix ---
 
-// Debounce utility (per instance)
-function debounce(func, wait) {
-  const timeouts = new WeakMap();
-  return function debounced(node, ...args) {
-    if (timeouts.has(node)) {
-      clearTimeout(timeouts.get(node));
-    }
-    timeouts.set(node, setTimeout(() => {
-      func.call(this, node, ...args);
-      timeouts.delete(node);
-    }, wait));
-  };
-}
+// --- Per-comment throttle (leading edge, 1s block) ---
+const butterflyLastFillTime = new WeakMap();
 
 // --- Auto-fill LinkedIn comment fields as soon as they appear ---
 (function autoFillLinkedInComments() {
@@ -145,21 +134,21 @@ function debounce(func, wait) {
 
     // Add Re-generate and Refine buttons if not present
     if (!box.parentElement.querySelector('.butterfly-regenerate-btn')) {
-      const btn = document.createElement('button');
-      btn.textContent = 'Regenerate';
-      btn.className = 'butterfly-regenerate-btn';
-      btn.style.marginLeft = '8px';
-      btn.style.marginTop = '4px';
-      btn.style.padding = '2px 8px';
-      btn.style.fontSize = '12px';
-      btn.style.cursor = 'pointer';
-      btn.style.background = '#8A2BE2';
-      btn.style.color = 'white';
-      btn.style.border = 'none';
-      btn.style.borderRadius = '4px';
-      btn.onclick = async () => {
-        btn.disabled = true;
-        btn.textContent = 'Generating...';
+      const regenerateBtn = document.createElement('button');
+      regenerateBtn.textContent = 'Regenerate';
+      regenerateBtn.className = 'butterfly-regenerate-btn';
+      regenerateBtn.style.marginLeft = '8px';
+      regenerateBtn.style.marginTop = '4px';
+      regenerateBtn.style.padding = '2px 8px';
+      regenerateBtn.style.fontSize = '12px';
+      regenerateBtn.style.cursor = 'pointer';
+      regenerateBtn.style.background = '#8A2BE2';
+      regenerateBtn.style.color = 'white';
+      regenerateBtn.style.border = 'none';
+      regenerateBtn.style.borderRadius = '4px';
+      regenerateBtn.onclick = async () => {
+        regenerateBtn.disabled = true;
+        regenerateBtn.textContent = 'Generating...';
         const { postText, postAuthor } = extractPostInfo(postElement);
         const newSuggestion = await getGeminiSuggestion(postText, postAuthor);
         if (newSuggestion) {
@@ -171,8 +160,8 @@ function debounce(func, wait) {
             box.dispatchEvent(new Event('input', { bubbles: true }));
           }
         }
-        btn.disabled = false;
-        btn.textContent = 'Regenerate';
+        regenerateBtn.disabled = false;
+        regenerateBtn.textContent = 'Regenerate';
       };
       // Refine button
       const refineBtn = document.createElement('button');
@@ -188,52 +177,68 @@ function debounce(func, wait) {
       refineBtn.style.border = 'none';
       refineBtn.style.borderRadius = '4px';
       refineBtn.onclick = async () => {
-        const instructions = prompt('How would you like to refine the reply? (Add extra instructions)');
-        if (!instructions) return;
-        // Get the current value of the comment box
-        let currentComment = box.isContentEditable ? box.innerText : box.value;
         refineBtn.disabled = true;
         refineBtn.textContent = 'Refining...';
-        const { postText, postAuthor } = extractPostInfo(postElement);
-        // Pass instructions and currentComment as separate arguments
-        const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
-        if (newSuggestion) {
-          if (box.isContentEditable) {
-            box.innerText = newSuggestion;
-            box.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            box.value = newSuggestion;
-            box.dispatchEvent(new Event('input', { bubbles: true }));
+        const instructions = prompt('How would you like to refine the reply? (Add extra instructions) DANGER BUG: DO NOT LEAVE EMPTY AND DO NOT CANCEL', 'refine');
+        if (instructions) {
+          // Get the current value of the comment box
+          let currentComment = box.isContentEditable ? box.innerText : box.value;
+          const { postText, postAuthor } = extractPostInfo(postElement);
+          // Pass instructions and currentComment as separate arguments
+          const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
+          if (newSuggestion) {
+            if (box.isContentEditable) {
+              box.innerText = newSuggestion;
+              box.dispatchEvent(new Event('input', { bubbles: true }));
+            } else {
+              box.value = newSuggestion;
+              box.dispatchEvent(new Event('input', { bubbles: true }));
+            }
           }
         }
         refineBtn.disabled = false;
         refineBtn.textContent = 'Refine';
       };
+      // Fake button
+      const fakeBtn = document.createElement('button');
+      fakeBtn.textContent = 'Post';
+      fakeBtn.className = 'butterfly-fake-btn';
+      fakeBtn.style.marginLeft = '8px';
+      fakeBtn.style.marginTop = '4px';
+      fakeBtn.style.padding = '2px 8px';
+      fakeBtn.style.fontSize = '12px';
+      fakeBtn.style.cursor = 'pointer';
+      fakeBtn.style.background = '#FF6347';
+      fakeBtn.style.color = 'white';
+      fakeBtn.style.border = 'none';
+      fakeBtn.style.borderRadius = '4px';
+      fakeBtn.onclick = () => {
+        box.dispatchEvent(new Event('input', { bubbles: true }));
+      };
       // Insert after the comment box
       if (box.nextSibling) {
-        box.parentElement.insertBefore(btn, box.nextSibling);
-        box.parentElement.insertBefore(refineBtn, btn.nextSibling);
+        box.parentElement.insertBefore(regenerateBtn, box.nextSibling);
+        box.parentElement.insertBefore(refineBtn, regenerateBtn.nextSibling);
+        box.parentElement.insertBefore(fakeBtn, refineBtn.nextSibling);
       } else {
-        box.parentElement.appendChild(btn);
+        box.parentElement.appendChild(regenerateBtn);
         box.parentElement.appendChild(refineBtn);
+        box.parentElement.appendChild(fakeBtn);
       }
     }
   }
 
   async function scanAndFill() {
-    // Debounced fill per comment box
-    if (!window._butterflyDebouncedFill) {
-      window._butterflyDebouncedFill = new WeakMap();
-    }
+    // Leading-edge throttle per comment box (1s)
     for (const sel of COMMENT_SELECTORS) {
       const boxes = document.querySelectorAll(sel);
       for (const box of boxes) {
-        let debounced = window._butterflyDebouncedFill.get(box);
-        if (!debounced) {
-          debounced = debounce(fillCommentBox, 100).bind(this, box);
-          window._butterflyDebouncedFill.set(box, debounced);
+        const now = Date.now();
+        const last = butterflyLastFillTime.get(box) || 0;
+        if (now - last >= 1000) {
+          butterflyLastFillTime.set(box, now);
+          fillCommentBox(box);
         }
-        debounced();
       }
     }
   }
