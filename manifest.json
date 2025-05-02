@@ -4,7 +4,6 @@
   "version": "1.0",
   "description": "AI-powered comment suggestions for LinkedIn posts using Google Gemini.",
   "permissions": [
-    "scripting",
     "storage"
   ],
   "host_permissions": [
