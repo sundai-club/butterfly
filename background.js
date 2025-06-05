@@ -2,7 +2,7 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GEMINI_SUGGEST') {
-    const { postText, postAuthor, refinement, currentComment } = message;
+    const { site, postText, postAuthor, refinement, currentComment } = message; // Added site
     // Get API key and model from storage
     chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
       const apiKey = result.geminiApiKey;
@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       // Pass model to fetchGeminiSuggestion
-      fetchGeminiSuggestion(postText, postAuthor, apiKey, model, refinement, currentComment)
+      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment) // Added site
         .then((suggestion) => {
           sendResponse({ suggestion });
         })
@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Update fetchGeminiSuggestion to accept model
-async function fetchGeminiSuggestion(postText, postAuthor, apiKey, model = 'gemini-2.5-flash-preview-05-20', refinement = '', currentComment = '') {
+async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash-preview-05-20', refinement = '', currentComment = '') { // Added site parameter, default to linkedin for backward compatibility
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
   let prompt = `Post author: "${postAuthor}"
@@ -37,10 +37,25 @@ Post content: "${postText}"`;
   if (refinement && refinement.trim()) {
     prompt += `\nRefinement instructions: ${refinement}`;
   }
-  if (currentComment && currentComment.trim()) {
-    prompt += `\n\nRefine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text.`;
-  } else {
-    prompt += `\n\nWrite a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.`;
+  if (site === 'producthunt') {
+      let authorReference = '';
+      if (postAuthor && postAuthor.toLowerCase() !== 'maker' && postAuthor.trim() !== '') {
+        authorReference = `The creator's name is '${postAuthor}'. You can refer to them by this name.`;
+      } else {
+        authorReference = `The creator's name was not identified; refer to them as 'the team', 'the creators', or 'the developers'. Do NOT use the word 'Maker' as a generic noun and do not invent a name.`;
+      }
+
+      if (currentComment && currentComment.trim()) {
+        prompt += `\n\nRefine the current comment for this Product Hunt post based on the refinement instructions. Focus on being supportive, insightful, or asking a relevant question. ${authorReference} Only output the final refined comment — no extra text, options, or formatting.`;
+      } else {
+        prompt += `\n\nWrite a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). ${authorReference} The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.`;
+      }
+    } else { // Default to LinkedIn
+    if (currentComment && currentComment.trim()) {
+      prompt += `\n\nRefine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text.`;
+    } else {
+      prompt += `\n\nWrite a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations,formatting, or any extra text. Include author's name in the comment.`;
+    }
   }
   const body = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }]

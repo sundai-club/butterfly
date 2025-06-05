@@ -8,6 +8,7 @@
   ],
   "host_permissions": [
     "https://www.linkedin.com/*",
+    "https://www.producthunt.com/*",
     "https://generativelanguage.googleapis.com/*"
   ],
   "background": {
@@ -20,6 +21,17 @@
       ],
       "js": [
         "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
+    },
+    {
+      "matches": [
+        "https://www.producthunt.com/*"
+      ],
+      "js": [
+        "producthunt_content.js"
       ],
       "css": [
         "styles.css"
