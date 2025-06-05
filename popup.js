@@ -16,8 +16,8 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
-  // Set model picker, default to gemini-2.0-flash
-  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.0-flash';
+  // Set model picker, default to gemini-2.5-flash-preview-05-20
+  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.5-flash-preview-05-20';
 });
 
 document.getElementById('api-key').addEventListener('input', function () {
