@@ -1,9 +1,9 @@
 # Butterfly Chrome Extension
 
-AI-powered comment suggestions for LinkedIn posts using Google Gemini API.
+AI-powered comment suggestions for LinkedIn and Product Hunt posts using Google Gemini API.
 
 ## Features
-- Detects LinkedIn posts and injects an AI comment suggestion UI.
+- Detects LinkedIn and Product Hunt posts and injects an AI comment suggestion UI.
 - Uses Gemini API to generate relevant, professional comment suggestions.
 - User can edit or post the suggestion.
 - API key is stored securely in extension settings.
