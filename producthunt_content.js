@@ -146,9 +146,9 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
     suggestBtn.disabled = true;
     suggestBtn.textContent = 'Auto-suggesting...';
 
-    // Hide regenerate/refine if they somehow exist already (should not happen here)
+    // Hide refine button if it exists
     const uiContainer = suggestBtn.parentElement;
-    uiContainer.querySelectorAll('.butterfly-ph-regenerate-btn, .butterfly-ph-refine-btn').forEach(btn => btn.style.display = 'none');
+    uiContainer.querySelectorAll('.butterfly-ph-refine-btn').forEach(btn => btn.style.display = 'none');
 
     const { postText, postAuthor } = extractProductInfo(postElement);
     const suggestion = await getGeminiSuggestionForProductHunt(postText, postAuthor);
@@ -164,7 +164,7 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
 
     suggestBtn.disabled = false;
     suggestBtn.textContent = originalSuggestText;
-    uiContainer.querySelectorAll('.butterfly-ph-regenerate-btn, .butterfly-ph-refine-btn').forEach(btn => btn.style.display = '');
+    uiContainer.querySelectorAll('.butterfly-ph-refine-btn').forEach(btn => btn.style.display = '');
   }
 }
 
@@ -221,34 +221,8 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance) {
     return;
   }
 
-  // Remove existing regenerate/refine buttons from this specific container
-  uiContainer.querySelectorAll('.butterfly-ph-regenerate-btn, .butterfly-ph-refine-btn').forEach(btn => btn.remove());
-
-  const regenerateBtn = document.createElement('button');
-  regenerateBtn.textContent = 'Regenerate';
-  regenerateBtn.className = 'butterfly-ph-regenerate-btn butterfly-btn';
-  regenerateBtn.onclick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
-    regenerateBtn.disabled = true;
-    regenerateBtn.textContent = 'Generating...';
-    if (suggestBtnInstance) suggestBtnInstance.disabled = true;
-
-    const { postText, postAuthor } = extractProductInfo(postElement);
-    const newSuggestion = await getGeminiSuggestionForProductHunt(postText, postAuthor);
-    if (newSuggestion) {
-      setCommentBoxValue(commentBox, newSuggestion);
-    }
-    regenerateBtn.disabled = false;
-    regenerateBtn.textContent = 'Regenerate';
-    if (suggestBtnInstance) {
-      suggestBtnInstance.disabled = false;
-      suggestBtnInstance.textContent = originalSuggestText; // Restore original text if it was changed
-    }
-  };
-  uiContainer.appendChild(regenerateBtn);
+  // Remove existing refine button from this specific container
+  uiContainer.querySelectorAll('.butterfly-ph-refine-btn').forEach(btn => btn.remove());
 
   const refineBtn = document.createElement('button');
   refineBtn.textContent = 'Refine';

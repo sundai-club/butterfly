@@ -8,6 +8,42 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
+/* Unified button container */
+.butterfly-ui-container {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+/* Base button style for all Butterfly buttons */
+.butterfly-btn {
+  background-color: SlateBlue;
+  color: white;
+  padding: 6px 12px;
+  border: 1px solid #40528A;
+  border-radius: 5px;
+  margin-left: 5px;
+  margin-top: 5px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.butterfly-btn:hover {
+  background-color: #5A6AAD;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.butterfly-btn:disabled {
+  background-color: #9FA8DA;
+  color: #E8EAF6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .butterfly-suggestion {
   display: flex;
   flex-direction: column;

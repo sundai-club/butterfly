@@ -43,7 +43,7 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
   // Send message to background for Gemini API call
   return new Promise((resolve) => {
     try {
-      chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor, refinement, currentComment }, (response) => {
+      chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', site: 'linkedin', postText, postAuthor, refinement, currentComment }, (response) => {
         // Check for chrome.runtime.lastError which indicates extension context issues
         if (chrome.runtime.lastError) {
           console.error('[Butterfly] Extension context error:', chrome.runtime.lastError);
@@ -127,7 +127,6 @@ const butterflyLastFillTime = new WeakMap();
     'textarea[aria-label="Add a comment..."]',
     'textarea[name="comment"]',
   ];
-  const FILLED_ATTR = 'data-butterfly-filled';
 
   // Helper to find the post element from a comment box
   function findPostElementFromCommentBox(box) {
@@ -135,104 +134,161 @@ const butterflyLastFillTime = new WeakMap();
     return box.closest('.feed-shared-update-v2, .scaffold-finite-scroll__content, .update-components-update, article');
   }
 
-  async function fillCommentBox(box) {
-    if (box.getAttribute(FILLED_ATTR)) return;
-    const postElement = findPostElementFromCommentBox(box);
-    if (!postElement) return;
-    const { postText, postAuthor } = extractPostInfo(postElement);
-    const suggestion = await getGeminiSuggestion(postText, postAuthor);
-    if (!suggestion) return;
-    // For contenteditable (divs)
+  function setCommentBoxValue(box, value) {
     if (box.isContentEditable) {
-      box.innerText = suggestion;
+      box.innerText = value;
       box.dispatchEvent(new Event('input', { bubbles: true }));
     } else {
-      box.value = suggestion;
+      box.value = value;
       box.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    box.setAttribute(FILLED_ATTR, '1');
+  }
 
-    // Add Re-generate and Refine buttons if not present
-    if (!box.parentElement.querySelector('.butterfly-regenerate-btn')) {
-      const regenerateBtn = document.createElement('button');
-      regenerateBtn.textContent = 'Regenerate';
-      regenerateBtn.className = 'butterfly-regenerate-btn';
-      regenerateBtn.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (!isExtensionContextValid()) {
-          alert('Extension was updated. Please refresh the page to continue using Butterfly.');
-          return;
-        }
-        
-        regenerateBtn.disabled = true;
-        regenerateBtn.textContent = 'Generating...';
-        const { postText, postAuthor } = extractPostInfo(postElement);
-        const newSuggestion = await getGeminiSuggestion(postText, postAuthor);
-        if (newSuggestion) {
-          if (box.isContentEditable) {
-            box.innerText = newSuggestion;
-            box.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            box.value = newSuggestion;
-            box.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        }
-        regenerateBtn.disabled = false;
-        regenerateBtn.textContent = 'Regenerate';
-      };
-      // Refine button
-      const refineBtn = document.createElement('button');
-      refineBtn.textContent = 'Refine';
-      refineBtn.className = 'butterfly-refine-btn';
-      refineBtn.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (!isExtensionContextValid()) {
-          alert('Extension was updated. Please refresh the page to continue using Butterfly.');
-          return;
-        }
-        
-        refineBtn.disabled = true;
-        refineBtn.textContent = 'Refining...';
-        const instructions = prompt('How would you like to refine the reply? (Add extra instructions)', '');
-        
-        // Early return if user cancels or provides empty input
-        if (instructions === null || instructions.trim() === '') {
-          refineBtn.disabled = false;
-          refineBtn.textContent = 'Refine';
-          return;
-        }
-        
-        // Get the current value of the comment box
-        let currentComment = box.isContentEditable ? box.innerText : box.value;
-        const { postText, postAuthor } = extractPostInfo(postElement);
-        // Pass instructions and currentComment as separate arguments
-        const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
-        if (newSuggestion) {
-          if (box.isContentEditable) {
-            box.innerText = newSuggestion;
-            box.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            box.value = newSuggestion;
-            box.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        }
-        
+  async function performInitialAutoSuggestion(box, postElement, suggestBtn) {
+    const isEmpty = (box.isContentEditable && box.innerText.trim() === '') || 
+                   (!box.isContentEditable && box.value.trim() === '');
+    
+    if (isEmpty && !box.dataset.butterflyAutoSuggested) {
+      console.log('[Butterfly] Comment box is empty, attempting auto-suggestion.');
+      box.dataset.butterflyAutoSuggested = 'true';
+      
+      const originalSuggestText = suggestBtn.textContent;
+      suggestBtn.disabled = true;
+      suggestBtn.textContent = 'Auto-suggesting...';
+      
+      // Hide refine button if it exists
+      const uiContainer = suggestBtn.parentElement;
+      uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.style.display = 'none');
+      
+      const { postText, postAuthor } = extractPostInfo(postElement);
+      const suggestion = await getGeminiSuggestion(postText, postAuthor);
+      
+      if (suggestion && !suggestion.includes('Extension was updated')) {
+        setCommentBoxValue(box, suggestion);
+        console.log('[Butterfly] Auto-suggestion applied.');
+        addInteractionButtons(box, postElement, suggestBtn);
+      } else {
+        console.log('[Butterfly] Auto-suggestion failed or returned empty.');
+      }
+      
+      suggestBtn.disabled = false;
+      suggestBtn.textContent = originalSuggestText;
+      uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.style.display = '');
+    }
+  }
+
+  function addInteractionButtons(box, postElement, suggestBtnInstance) {
+    const uiContainer = box.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]');
+    if (!uiContainer) {
+      console.error("[Butterfly] UI container not found for interaction buttons.");
+      return;
+    }
+    
+    // Remove existing refine button
+    uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.remove());
+    
+    const refineBtn = document.createElement('button');
+    refineBtn.textContent = 'Refine';
+    refineBtn.className = 'butterfly-refine-btn butterfly-btn';
+    refineBtn.style.cssText = 'background-color: SlateBlue; color: white; padding: 6px 12px; border: 1px solid #40528A; border-radius: 5px; margin-left: 5px; margin-top: 5px; cursor: pointer; font-size: 0.85em; font-weight: 500;';
+    refineBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (!isExtensionContextValid()) {
+        alert('Extension was updated. Please refresh the page to continue using Butterfly.');
+        return;
+      }
+      
+      const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
+      refineBtn.disabled = true;
+      refineBtn.textContent = 'Refining...';
+      if (suggestBtnInstance) suggestBtnInstance.disabled = true;
+      
+      const instructions = prompt('How would you like to refine the reply? (Add extra instructions)', '');
+      
+      // Early return if user cancels or provides empty input
+      if (instructions === null || instructions.trim() === '') {
         refineBtn.disabled = false;
         refineBtn.textContent = 'Refine';
-      };
-      // Insert after the comment box
-      if (box.nextSibling) {
-        box.parentElement.insertBefore(regenerateBtn, box.nextSibling);
-        box.parentElement.insertBefore(refineBtn, regenerateBtn.nextSibling);
-      } else {
-        box.parentElement.appendChild(regenerateBtn);
-        box.parentElement.appendChild(refineBtn);
+        if (suggestBtnInstance) {
+          suggestBtnInstance.disabled = false;
+          suggestBtnInstance.textContent = originalSuggestText;
+        }
+        return;
       }
+      
+      // Get the current value of the comment box
+      let currentComment = box.isContentEditable ? box.innerText : box.value;
+      const { postText, postAuthor } = extractPostInfo(postElement);
+      const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
+      if (newSuggestion && !newSuggestion.includes('Extension was updated')) {
+        setCommentBoxValue(box, newSuggestion);
+      }
+      
+      refineBtn.disabled = false;
+      refineBtn.textContent = 'Refine';
+      if (suggestBtnInstance) {
+        suggestBtnInstance.disabled = false;
+        suggestBtnInstance.textContent = originalSuggestText;
+      }
+    };
+    uiContainer.appendChild(refineBtn);
+  }
+
+  function injectUI(box, postElement) {
+    // Check if UI already exists
+    let uiContainer = box.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]');
+    if (uiContainer) {
+      return;
     }
+    
+    // Assign unique ID to comment box
+    if (!box.dataset.butterflyId) {
+      box.dataset.butterflyId = 'li-cb-' + Date.now() + Math.random().toString(36).substring(2, 7);
+    }
+    
+    // Create UI container
+    uiContainer = document.createElement('div');
+    uiContainer.className = 'butterfly-ui-container';
+    uiContainer.dataset.commentboxId = box.dataset.butterflyId;
+    uiContainer.style.cssText = 'display: flex; align-items: center; margin-top: 5px; flex-wrap: wrap;';
+    
+    // Create suggest button
+    const suggestBtn = document.createElement('button');
+    suggestBtn.textContent = 'Suggest Comment ✨';
+    suggestBtn.className = 'butterfly-suggest-btn butterfly-btn';
+    suggestBtn.style.cssText = 'background-color: SlateBlue; color: white; padding: 6px 12px; border: 1px solid #40528A; border-radius: 5px; margin-left: 5px; margin-top: 5px; cursor: pointer; font-size: 0.85em; font-weight: 500;';
+    uiContainer.appendChild(suggestBtn);
+    
+    // Insert container after comment box
+    box.parentElement.insertBefore(uiContainer, box.nextSibling);
+    
+    // Add click handler
+    suggestBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (!isExtensionContextValid()) {
+        alert('Extension was updated. Please refresh the page to continue using Butterfly.');
+        return;
+      }
+      
+      const originalText = suggestBtn.textContent;
+      suggestBtn.disabled = true;
+      suggestBtn.textContent = 'Thinking...';
+      const { postText, postAuthor } = extractPostInfo(postElement);
+      const suggestion = await getGeminiSuggestion(postText, postAuthor);
+      if (suggestion && !suggestion.includes('Extension was updated')) {
+        setCommentBoxValue(box, suggestion);
+        addInteractionButtons(box, postElement, suggestBtn);
+      }
+      suggestBtn.disabled = false;
+      suggestBtn.textContent = originalText;
+    };
+    
+    // Attempt initial auto-suggestion
+    performInitialAutoSuggestion(box, postElement, suggestBtn);
   }
 
   async function scanAndFill() {
@@ -244,7 +300,11 @@ const butterflyLastFillTime = new WeakMap();
         const last = butterflyLastFillTime.get(box) || 0;
         if (now - last >= 1000) {
           butterflyLastFillTime.set(box, now);
-          fillCommentBox(box);
+          const postElement = findPostElementFromCommentBox(box);
+          if (postElement && !box.dataset.butterflyInjected) {
+            injectUI(box, postElement);
+            box.dataset.butterflyInjected = 'true';
+          }
         }
       }
     }
