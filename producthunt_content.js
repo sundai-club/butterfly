@@ -171,7 +171,10 @@ function injectUI(commentBox, postElement) {
   // For TipTap, the commentBox is the editor itself. Its parent is likely the form control wrapper.
   commentBox.parentElement.insertBefore(uiContainer, commentBox.nextSibling);
 
-  suggestBtn.onclick = async () => {
+  suggestBtn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const originalText = suggestBtn.textContent;
     suggestBtn.disabled = true;
     suggestBtn.textContent = 'Thinking...';
@@ -202,7 +205,10 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance) {
   const regenerateBtn = document.createElement('button');
   regenerateBtn.textContent = 'Regenerate';
   regenerateBtn.className = 'butterfly-ph-regenerate-btn butterfly-btn';
-  regenerateBtn.onclick = async () => {
+  regenerateBtn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
     regenerateBtn.disabled = true;
     regenerateBtn.textContent = 'Generating...';
@@ -225,21 +231,35 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance) {
   const refineBtn = document.createElement('button');
   refineBtn.textContent = 'Refine';
   refineBtn.className = 'butterfly-ph-refine-btn butterfly-btn';
-  refineBtn.onclick = async () => {
+  refineBtn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
     refineBtn.disabled = true;
     refineBtn.textContent = 'Refining...';
     if (suggestBtnInstance) suggestBtnInstance.disabled = true;
 
-    const instructions = prompt('How would you like to refine the reply? (Add extra instructions) DANGER BUG: DO NOT LEAVE EMPTY AND DO NOT CANCEL', 'refine');
-    if (instructions !== null) {
-      let currentCommentText = commentBox.isContentEditable ? commentBox.innerText : commentBox.value;
-      const { postText, postAuthor } = extractProductInfo(postElement);
-      const newSuggestion = await getGeminiSuggestionForProductHunt(postText, postAuthor, instructions, currentCommentText);
-      if (newSuggestion) {
-        setCommentBoxValue(commentBox, newSuggestion);
+    const instructions = prompt('How would you like to refine the reply? (Add extra instructions)', '');
+    
+    // Early return if user cancels or provides empty input
+    if (instructions === null || instructions.trim() === '') {
+      refineBtn.disabled = false;
+      refineBtn.textContent = 'Refine';
+      if (suggestBtnInstance) {
+        suggestBtnInstance.disabled = false;
+        suggestBtnInstance.textContent = originalSuggestText;
       }
+      return;
     }
+    
+    let currentCommentText = commentBox.isContentEditable ? commentBox.innerText : commentBox.value;
+    const { postText, postAuthor } = extractProductInfo(postElement);
+    const newSuggestion = await getGeminiSuggestionForProductHunt(postText, postAuthor, instructions, currentCommentText);
+    if (newSuggestion) {
+      setCommentBoxValue(commentBox, newSuggestion);
+    }
+    
     refineBtn.disabled = false;
     refineBtn.textContent = 'Refine';
     if (suggestBtnInstance) {

@@ -137,7 +137,10 @@ const butterflyLastFillTime = new WeakMap();
       const regenerateBtn = document.createElement('button');
       regenerateBtn.textContent = 'Regenerate';
       regenerateBtn.className = 'butterfly-regenerate-btn';
-      regenerateBtn.onclick = async () => {
+      regenerateBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
         regenerateBtn.disabled = true;
         regenerateBtn.textContent = 'Generating...';
         const { postText, postAuthor } = extractPostInfo(postElement);
@@ -158,26 +161,36 @@ const butterflyLastFillTime = new WeakMap();
       const refineBtn = document.createElement('button');
       refineBtn.textContent = 'Refine';
       refineBtn.className = 'butterfly-refine-btn';
-      refineBtn.onclick = async () => {
+      refineBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
         refineBtn.disabled = true;
         refineBtn.textContent = 'Refining...';
-        const instructions = prompt('How would you like to refine the reply? (Add extra instructions) DANGER BUG: DO NOT LEAVE EMPTY AND DO NOT CANCEL', 'refine');
-        if (instructions) {
-          // Get the current value of the comment box
-          let currentComment = box.isContentEditable ? box.innerText : box.value;
-          const { postText, postAuthor } = extractPostInfo(postElement);
-          // Pass instructions and currentComment as separate arguments
-          const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
-          if (newSuggestion) {
-            if (box.isContentEditable) {
-              box.innerText = newSuggestion;
-              box.dispatchEvent(new Event('input', { bubbles: true }));
-            } else {
-              box.value = newSuggestion;
-              box.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+        const instructions = prompt('How would you like to refine the reply? (Add extra instructions)', '');
+        
+        // Early return if user cancels or provides empty input
+        if (instructions === null || instructions.trim() === '') {
+          refineBtn.disabled = false;
+          refineBtn.textContent = 'Refine';
+          return;
+        }
+        
+        // Get the current value of the comment box
+        let currentComment = box.isContentEditable ? box.innerText : box.value;
+        const { postText, postAuthor } = extractPostInfo(postElement);
+        // Pass instructions and currentComment as separate arguments
+        const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
+        if (newSuggestion) {
+          if (box.isContentEditable) {
+            box.innerText = newSuggestion;
+            box.dispatchEvent(new Event('input', { bubbles: true }));
+          } else {
+            box.value = newSuggestion;
+            box.dispatchEvent(new Event('input', { bubbles: true }));
           }
         }
+        
         refineBtn.disabled = false;
         refineBtn.textContent = 'Refine';
       };
@@ -185,7 +198,9 @@ const butterflyLastFillTime = new WeakMap();
       const postBtn = document.createElement('button');
       postBtn.textContent = 'Post';
       postBtn.className = 'butterfly-post-btn';
-      postBtn.onclick = () => {
+      postBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         box.dispatchEvent(new Event('input', { bubbles: true }));
       };
       // Insert after the comment box
