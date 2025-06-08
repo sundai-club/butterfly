@@ -194,24 +194,13 @@ const butterflyLastFillTime = new WeakMap();
         refineBtn.disabled = false;
         refineBtn.textContent = 'Refine';
       };
-      // Fake button
-      const postBtn = document.createElement('button');
-      postBtn.textContent = 'Post';
-      postBtn.className = 'butterfly-post-btn';
-      postBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        box.dispatchEvent(new Event('input', { bubbles: true }));
-      };
       // Insert after the comment box
       if (box.nextSibling) {
         box.parentElement.insertBefore(regenerateBtn, box.nextSibling);
         box.parentElement.insertBefore(refineBtn, regenerateBtn.nextSibling);
-        box.parentElement.insertBefore(postBtn, refineBtn.nextSibling);
       } else {
         box.parentElement.appendChild(regenerateBtn);
         box.parentElement.appendChild(refineBtn);
-        box.parentElement.appendChild(postBtn);
       }
     }
   }
