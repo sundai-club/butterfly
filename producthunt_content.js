@@ -56,17 +56,28 @@ function setCommentBoxValue(commentBox, value) {
 
     // Move cursor to end of the content
     commentBox.focus(); // Ensure the editor is focused to receive selection
-    const range = document.createRange();
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) sel.removeAllRanges(); // Clear existing selections
+    
+    // Wrap in try-catch to handle cases where range operations fail
+    try {
+      const range = document.createRange();
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) sel.removeAllRanges(); // Clear existing selections
 
-    if (commentBox.lastChild) {
-      range.selectNodeContents(commentBox.lastChild);
-    } else {
-      range.selectNodeContents(commentBox);
+      // Make sure the element is in the document before creating a range
+      if (commentBox.lastChild && commentBox.lastChild.parentNode) {
+        range.selectNodeContents(commentBox.lastChild);
+        range.collapse(false); // Collapse to the end
+        sel.addRange(range);
+      } else if (commentBox.parentNode) {
+        // Fallback: just focus the element without setting cursor position
+        range.selectNodeContents(commentBox);
+        range.collapse(false);
+        sel.addRange(range);
+      }
+    } catch (e) {
+      console.warn('[Butterfly PH] Failed to set cursor position:', e);
+      // Continue execution - the text is already inserted
     }
-    range.collapse(false); // Collapse to the end
-    sel.addRange(range);
   } else {
     commentBox.value = value;
     commentBox.focus();
