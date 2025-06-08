@@ -2,6 +2,7 @@
 <html>
 
 <head>
+  <meta charset="UTF-8">
   <title>Butterfly Settings</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -22,6 +23,25 @@
     </select>
     <button id="save-btn" style="margin: 8px 0;">Save</button>
     <div id="status"></div>
+    
+    <!-- Rating and Chrome Web Store Link -->
+    <div class="rating-section">
+      <div class="divider"></div>
+      <p class="rating-text">Enjoying Butterfly? Rate us!</p>
+      <div class="star-rating">
+        <span class="star" data-value="1">&#9733;</span>
+        <span class="star" data-value="2">&#9733;</span>
+        <span class="star" data-value="3">&#9733;</span>
+        <span class="star" data-value="4">&#9733;</span>
+        <span class="star" data-value="5">&#9733;</span>
+      </div>
+      <a href="https://chromewebstore.google.com/detail/butterfly/glnbimhldddbgjpoeohaogmhfmkfjbop" 
+         target="_blank" 
+         class="webstore-link">
+        View in Chrome Web Store
+      </a>
+    </div>
+    
     <script src="popup.js"></script>
   </div>
 </body>

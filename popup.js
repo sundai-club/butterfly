@@ -48,3 +48,59 @@ function showKeyPreview(key) {
     preview.textContent = '';
   }
 }
+
+// Rating functionality
+document.addEventListener('DOMContentLoaded', function() {
+  const stars = document.querySelectorAll('.star');
+  let selectedRating = 0;
+  
+  // Load saved rating
+  chrome.storage.sync.get(['userRating'], (result) => {
+    if (result.userRating) {
+      selectedRating = result.userRating;
+      updateStars(selectedRating);
+    }
+  });
+  
+  stars.forEach(star => {
+    star.addEventListener('mouseenter', function() {
+      const rating = parseInt(this.getAttribute('data-value'));
+      updateStars(rating, true);
+    });
+    
+    star.addEventListener('mouseleave', function() {
+      updateStars(selectedRating);
+    });
+    
+    star.addEventListener('click', function() {
+      selectedRating = parseInt(this.getAttribute('data-value'));
+      updateStars(selectedRating);
+      
+      // Save rating
+      chrome.storage.sync.set({ userRating: selectedRating });
+      
+      // If rating is 4 or 5, open Chrome Web Store
+      if (selectedRating >= 4) {
+        setTimeout(() => {
+          window.open('https://chromewebstore.google.com/detail/butterfly/glnbimhldddbgjpoeohaogmhfmkfjbop', '_blank');
+        }, 300);
+      }
+    });
+  });
+  
+  function updateStars(rating, isHover = false) {
+    stars.forEach((star, index) => {
+      if (index < rating) {
+        if (isHover) {
+          star.classList.add('hover');
+          star.classList.remove('selected');
+        } else {
+          star.classList.add('selected');
+          star.classList.remove('hover');
+        }
+      } else {
+        star.classList.remove('selected', 'hover');
+      }
+    });
+  }
+});

@@ -242,3 +242,57 @@ body,
   margin-top: 8px;
   color: var(--text-muted);
 }
+
+/* Rating Section */
+.rating-section {
+  margin-top: 4px;
+  text-align: center;
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 4px 0 8px 0;
+}
+
+.rating-text {
+  font-size: 0.9em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.star-rating {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.star {
+  color: #ddd;
+  cursor: pointer;
+  transition: color 0.2s;
+  display: inline-block;
+  padding: 0 2px;
+}
+
+.star:hover,
+.star.hover {
+  color: #ffd700;
+}
+
+.star.selected {
+  color: #ffd700;
+}
+
+.webstore-link {
+  font-size: 0.85em;
+  color: var(--button-bg);
+  text-decoration: none;
+  display: inline-block;
+  padding: 4px 0;
+  transition: opacity 0.2s;
+}
+
+.webstore-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
