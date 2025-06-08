@@ -1,5 +1,14 @@
 // content.js - Injects AI comment UI under LinkedIn posts
 
+// Function to check if extension context is still valid
+function isExtensionContextValid() {
+  try {
+    return chrome.runtime && chrome.runtime.id;
+  } catch (e) {
+    return false;
+  }
+}
+
 // New function to extract both post text and author
 function extractPostInfo(postElement) {
   // Try to extract the main post text
@@ -33,9 +42,20 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
   console.log('Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
   // Send message to background for Gemini API call
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor, refinement, currentComment }, (response) => {
-      resolve(response && response.suggestion);
-    });
+    try {
+      chrome.runtime.sendMessage({ type: 'GEMINI_SUGGEST', postText, postAuthor, refinement, currentComment }, (response) => {
+        // Check for chrome.runtime.lastError which indicates extension context issues
+        if (chrome.runtime.lastError) {
+          console.error('[Butterfly] Extension context error:', chrome.runtime.lastError);
+          resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+          return;
+        }
+        resolve(response && response.suggestion);
+      });
+    } catch (error) {
+      console.error('[Butterfly] Failed to send message:', error);
+      resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+    }
   });
 }
 
@@ -141,6 +161,11 @@ const butterflyLastFillTime = new WeakMap();
         e.preventDefault();
         e.stopPropagation();
         
+        if (!isExtensionContextValid()) {
+          alert('Extension was updated. Please refresh the page to continue using Butterfly.');
+          return;
+        }
+        
         regenerateBtn.disabled = true;
         regenerateBtn.textContent = 'Generating...';
         const { postText, postAuthor } = extractPostInfo(postElement);
@@ -164,6 +189,11 @@ const butterflyLastFillTime = new WeakMap();
       refineBtn.onclick = async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        if (!isExtensionContextValid()) {
+          alert('Extension was updated. Please refresh the page to continue using Butterfly.');
+          return;
+        }
         
         refineBtn.disabled = true;
         refineBtn.textContent = 'Refining...';

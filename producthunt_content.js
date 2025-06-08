@@ -114,12 +114,23 @@ function extractProductInfo(contextElement) {
 async function getGeminiSuggestionForProductHunt(postText, postAuthor, refinement = '', currentComment = '') {
   console.log('[Butterfly PH] Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage(
-      { type: 'GEMINI_SUGGEST', site: 'producthunt', postText, postAuthor, refinement, currentComment },
-      (response) => {
-        resolve(response && response.suggestion);
-      }
-    );
+    try {
+      chrome.runtime.sendMessage(
+        { type: 'GEMINI_SUGGEST', site: 'producthunt', postText, postAuthor, refinement, currentComment },
+        (response) => {
+          // Check for chrome.runtime.lastError which indicates extension context issues
+          if (chrome.runtime.lastError) {
+            console.error('[Butterfly PH] Extension context error:', chrome.runtime.lastError);
+            resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+            return;
+          }
+          resolve(response && response.suggestion);
+        }
+      );
+    } catch (error) {
+      console.error('[Butterfly PH] Failed to send message:', error);
+      resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+    }
   });
 }
 
