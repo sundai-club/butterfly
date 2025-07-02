@@ -283,7 +283,8 @@ body,
   color: #ffd700;
 }
 
-.webstore-link {
+.webstore-link,
+.issues-link {
   font-size: 0.85em;
   color: var(--button-bg);
   text-decoration: none;
@@ -292,7 +293,12 @@ body,
   transition: opacity 0.2s;
 }
 
-.webstore-link:hover {
+.webstore-link:hover,
+.issues-link:hover {
   opacity: 0.8;
   text-decoration: underline;
+}
+
+.issues-link {
+  margin-left: 12px;
 }
