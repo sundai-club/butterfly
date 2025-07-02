@@ -10,19 +10,48 @@
 <body>
   <div class="popup-container">
     <h2>Butterfly Settings</h2>
-    <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">Google
-        Gemini API Key:</a></label>
-    <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
-    <div id="api-key-preview" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
-    <label for="model-picker">Model:</label>
-    <select id="model-picker">
-      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-      <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-      <option value="gemini-2.5-flash-preview-05-20">gemini-2.5-flash-preview-05-20 (default)</option>
-      <option value="gemini-2.5-pro-preview-05-06">gemini-2.5-pro-preview-05-06</option>
-    </select>
-    <button id="save-btn" style="margin: 8px 0;">Save</button>
+    <div class="settings-section">
+      <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">Google Gemini API Key:</a></label>
+      <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
+      <div id="api-key-preview"></div>
+      
+      <label for="model-picker">Model:</label>
+      <select id="model-picker">
+        <option value="gemini-2.5-flash">gemini-2.5-flash (default)</option>
+        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+      </select>
+      
+      <button id="save-btn">Save</button>
+    </div>
     <div id="status"></div>
+    
+    <!-- Prompts Section -->
+    <div class="prompts-section">
+      <div class="divider"></div>
+      <h3>Prompts</h3>
+      <div class="prompt-tabs">
+        <button class="tab-btn active" data-tab="linkedin">LinkedIn</button>
+        <button class="tab-btn" data-tab="producthunt">Product Hunt</button>
+        <button class="tab-btn" data-tab="twitter">Twitter/X</button>
+      </div>
+      <div class="tab-content">
+        <div class="tab-pane active" id="tab-linkedin">
+          <div class="prompt-text">
+            Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.
+          </div>
+        </div>
+        <div class="tab-pane" id="tab-producthunt">
+          <div class="prompt-text">
+            Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.
+          </div>
+        </div>
+        <div class="tab-pane" id="tab-twitter">
+          <div class="prompt-text">
+            Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting.
+          </div>
+        </div>
+      </div>
+    </div>
     
     <!-- Rating and Chrome Web Store Link -->
     <div class="rating-section">

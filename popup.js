@@ -16,8 +16,8 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
-  // Set model picker, default to gemini-2.5-flash-preview-05-20
-  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.5-flash-preview-05-20';
+  // Set model picker, default to gemini-2.5-flash
+  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.5-flash';
 });
 
 document.getElementById('api-key').addEventListener('input', function () {
@@ -103,4 +103,24 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+});
+
+// Tab functionality
+document.addEventListener('DOMContentLoaded', function() {
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabPanes = document.querySelectorAll('.tab-pane');
+  
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const targetTab = this.getAttribute('data-tab');
+      
+      // Remove active class from all tabs and panes
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanes.forEach(p => p.classList.remove('active'));
+      
+      // Add active class to clicked tab and corresponding pane
+      this.classList.add('active');
+      document.getElementById('tab-' + targetTab).classList.add('active');
+    });
+  });
 });

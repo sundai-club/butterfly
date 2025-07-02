@@ -22,7 +22,7 @@
         "https://www.linkedin.com/*"
       ],
       "js": [
-        "linkedin_content.js"
+        "content_linkedin.js"
       ],
       "css": [
         "styles.css"
@@ -33,7 +33,7 @@
         "https://www.producthunt.com/*"
       ],
       "js": [
-        "producthunt_content.js"
+        "content_producthunt.js"
       ],
       "css": [
         "styles.css"
@@ -45,7 +45,7 @@
         "https://x.com/*"
       ],
       "js": [
-        "twitter_content.js"
+        "content_twitter.js"
       ],
       "css": [
         "styles.css"

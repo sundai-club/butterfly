@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Get API key and model from storage
     chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
       const apiKey = result.geminiApiKey;
-      const model = result.geminiModel || 'gemini-2.5-flash-preview-05-20';
+      const model = result.geminiModel || 'gemini-2.5-flash';
       if (!apiKey) {
         sendResponse({ suggestion: 'Set Gemini API key in extension settings.' });
         return;
@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Update fetchGeminiSuggestion to accept model
-async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash-preview-05-20', refinement = '', currentComment = '') { // Added site parameter, default to linkedin for backward compatibility
+async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '') { // Added site parameter, default to linkedin for backward compatibility
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
   let prompt = `Post author: "${postAuthor}"

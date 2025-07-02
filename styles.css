@@ -176,34 +176,48 @@ body,
 .popup-container {
   background: var(--foreground);
   box-shadow: var(--shadow);
-  padding: 22px 18px 16px 18px;
+  padding: 18px 16px 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .popup-container h2 {
-  font-size: 1.22em;
-  margin: 0 0 12px 0;
+  font-size: 1.15em;
+  margin: 0 0 8px 0;
   font-weight: 600;
 }
 
+/* Settings Section */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .popup-container label {
-  font-size: 0.98em;
-  margin-bottom: 4px;
+  font-size: 0.9em;
+  margin-bottom: 2px;
   color: var(--text);
 }
 
 .popup-container input,
 .popup-container select {
-  padding: 7px 10px;
-  margin-bottom: 10px;
-  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-radius: 5px;
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text);
-  font-size: 1em;
+  font-size: 0.95em;
   transition: border 0.2s;
+}
+
+#api-key-preview {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  min-height: 14px;
 }
 
 .popup-container input:focus,
@@ -214,15 +228,15 @@ body,
 
 .popup-container button {
   width: 100%;
-  padding: 10px 0;
-  border-radius: 6px;
+  padding: 8px 0;
+  border-radius: 5px;
   border: none;
   background: var(--button-bg);
   color: var(--button-text);
-  font-size: 1em;
+  font-size: 0.95em;
   font-weight: 500;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: background 0.2s;
 }
@@ -231,15 +245,9 @@ body,
   background: var(--button-bg-alt);
 }
 
-#api-key-preview {
-  font-size: 0.88em;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-}
-
 #status {
-  font-size: 0.98em;
-  margin-top: 8px;
+  font-size: 0.9em;
+  margin-top: 4px;
   color: var(--text-muted);
 }
 
@@ -301,4 +309,74 @@ body,
 
 .issues-link {
   margin-left: 12px;
+}
+
+/* Prompts Section */
+.prompts-section {
+  margin-top: 4px;
+}
+
+.prompts-section h3 {
+  font-size: 1.1em;
+  margin: 8px 0 8px 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Tab Navigation */
+.prompt-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--input-border);
+  margin-bottom: 8px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px 8px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  font-size: 0.8em !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  border-bottom: 2px solid transparent !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  font-weight: 500 !important;
+}
+
+.tab-btn:hover {
+  color: var(--text) !important;
+  background: var(--input-bg) !important;
+}
+
+.tab-btn.active {
+  color: var(--button-bg) !important;
+  border-bottom-color: var(--button-bg) !important;
+  background: transparent !important;
+}
+
+/* Tab Content */
+.tab-content {
+  position: relative;
+  min-height: 60px;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+.prompt-text {
+  font-size: 0.8em;
+  line-height: 1.3;
+  color: var(--text-muted);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
 }
