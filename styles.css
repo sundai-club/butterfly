@@ -196,7 +196,7 @@ body,
 }
 
 .popup-container label {
-  font-size: 0.9em;
+  font-size: 0.98em;
   margin-bottom: 2px;
   color: var(--text);
 }
@@ -209,15 +209,23 @@ body,
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text);
-  font-size: 0.95em;
+  font-size: 1em;
   transition: border 0.2s;
+}
+
+.api-key-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
 }
 
 #api-key-preview {
   font-size: 0.75em;
   color: var(--text-muted);
-  margin-bottom: 6px;
-  min-height: 14px;
+  font-style: italic;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .popup-container input:focus,
@@ -370,13 +378,46 @@ body,
   display: block;
 }
 
-.prompt-text {
+.prompt-textarea {
+  width: 100%;
   font-size: 0.8em;
   line-height: 1.3;
-  color: var(--text-muted);
+  color: var(--text);
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 4px;
   padding: 8px;
   font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+  resize: vertical;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.prompt-textarea:focus {
+  border-color: var(--button-bg);
+  outline: none;
+}
+
+.reset-prompt-btn {
+  font-size: 0.75em !important;
+  padding: 4px 8px !important;
+  background: var(--input-bg) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  margin-bottom: 8px !important;
+  width: auto !important;
+  transition: all 0.2s ease !important;
+}
+
+.reset-prompt-btn:hover {
+  background: var(--button-bg) !important;
+  color: var(--button-text) !important;
+}
+
+.save-prompts-btn {
+  margin-top: 8px !important;
+  font-size: 0.9em !important;
+  padding: 6px 0 !important;
 }

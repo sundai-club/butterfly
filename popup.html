@@ -11,9 +11,11 @@
   <div class="popup-container">
     <h2>Butterfly Settings</h2>
     <div class="settings-section">
-      <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">Google Gemini API Key:</a></label>
+      <div class="api-key-row">
+        <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">Google Gemini API Key:</a></label>
+        <span id="api-key-preview"></span>
+      </div>
       <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
-      <div id="api-key-preview"></div>
       
       <label for="model-picker">Model:</label>
       <select id="model-picker">
@@ -36,21 +38,19 @@
       </div>
       <div class="tab-content">
         <div class="tab-pane active" id="tab-linkedin">
-          <div class="prompt-text">
-            Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.
-          </div>
+          <textarea class="prompt-textarea" id="linkedin-prompt" rows="7" placeholder="Enter LinkedIn prompt...">Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.</textarea>
+          <button class="reset-prompt-btn" data-platform="linkedin">Reset to Default</button>
         </div>
         <div class="tab-pane" id="tab-producthunt">
-          <div class="prompt-text">
-            Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.
-          </div>
+          <textarea class="prompt-textarea" id="producthunt-prompt" rows="7" placeholder="Enter Product Hunt prompt...">Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.</textarea>
+          <button class="reset-prompt-btn" data-platform="producthunt">Reset to Default</button>
         </div>
         <div class="tab-pane" id="tab-twitter">
-          <div class="prompt-text">
-            Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting.
-          </div>
+          <textarea class="prompt-textarea" id="twitter-prompt" rows="7" placeholder="Enter Twitter/X prompt...">Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting.</textarea>
+          <button class="reset-prompt-btn" data-platform="twitter">Reset to Default</button>
         </div>
       </div>
+      <button id="save-prompts-btn" class="save-prompts-btn">Update Prompts</button>
     </div>
     
     <!-- Rating and Chrome Web Store Link -->

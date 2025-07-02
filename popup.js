@@ -10,14 +10,27 @@ document.getElementById('save-btn').onclick = function () {
   });
 };
 
-// Load existing key and model
-chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
+// Default prompts for each platform
+const defaultPrompts = {
+  linkedin: "Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.",
+  producthunt: "Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.",
+  twitter: "Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting."
+};
+
+// Load existing key, model, and custom prompts
+chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts'], (result) => {
   if (result.geminiApiKey) {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
   // Set model picker, default to gemini-2.5-flash
   document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.5-flash';
+  
+  // Load custom prompts or use defaults
+  const customPrompts = result.customPrompts || {};
+  document.getElementById('linkedin-prompt').value = customPrompts.linkedin || defaultPrompts.linkedin;
+  document.getElementById('producthunt-prompt').value = customPrompts.producthunt || defaultPrompts.producthunt;
+  document.getElementById('twitter-prompt').value = customPrompts.twitter || defaultPrompts.twitter;
 });
 
 document.getElementById('api-key').addEventListener('input', function () {
@@ -40,10 +53,9 @@ function showKeyPreview(key) {
   if (key && key.length > 8) {
     const first = key.slice(0, 4);
     const last = key.slice(-4);
-    const stars = '.'.repeat(key.length - 8);
-    preview.textContent = `Current Key: ${first}${stars}${last}`;
+    preview.textContent = `Current Key: ${first}...${last}`;
   } else if (key) {
-    preview.textContent = 'Current Key: ' + '.'.repeat(key.length);
+    preview.textContent = 'Current Key: ' + '.'.repeat(Math.min(key.length, 5));
   } else {
     preview.textContent = '';
   }
@@ -102,6 +114,37 @@ document.addEventListener('DOMContentLoaded', function() {
         star.classList.remove('selected', 'hover');
       }
     });
+  }
+});
+
+// Save prompts functionality
+document.getElementById('save-prompts-btn').addEventListener('click', function() {
+  const customPrompts = {
+    linkedin: document.getElementById('linkedin-prompt').value,
+    producthunt: document.getElementById('producthunt-prompt').value,
+    twitter: document.getElementById('twitter-prompt').value
+  };
+  
+  chrome.storage.sync.set({ customPrompts }, () => {
+    const originalText = this.textContent;
+    this.textContent = 'Saved!';
+    this.style.background = 'var(--button-bg-alt)';
+    
+    setTimeout(() => {
+      this.textContent = originalText;
+      this.style.background = '';
+    }, 1500);
+  });
+});
+
+// Reset prompt functionality
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('reset-prompt-btn')) {
+    const platform = e.target.getAttribute('data-platform');
+    const textarea = document.getElementById(platform + '-prompt');
+    if (textarea && defaultPrompts[platform]) {
+      textarea.value = defaultPrompts[platform];
+    }
   }
 });
 
