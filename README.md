@@ -1,6 +1,8 @@
 # Butterfly Chrome Extension
 
-AI-powered comment suggestions for LinkedIn and Product Hunt posts using Google Gemini API.
+AI-powered comment suggestions for LinkedIn, Twitter/X, and Product Hunt using Google Gemini. Become a social butterfly.
+
+Install from Chrome Web Store: https://chromewebstore.google.com/detail/butterfly/glnbimhldddbgjpoeohaogmhfmkfjbop
 
 ## Features
 - Detects LinkedIn and Product Hunt posts and injects an AI comment suggestion UI.
