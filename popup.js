@@ -12,9 +12,9 @@ document.getElementById('save-btn').onclick = function () {
 
 // Default prompts for each platform
 const defaultPrompts = {
-  linkedin: "Write a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.",
-  producthunt: "Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.",
-  twitter: "Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting."
+  linkedin: "Write a single, concise, professional congratulatory comment for this LinkedIn post. Avoid overused or clichéd phrases - write in a natural, authentic voice. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.",
+  producthunt: "Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). Avoid overused or clichéd phrases - write in a natural, authentic voice. The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.",
+  twitter: "Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Avoid overused or clichéd phrases. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting."
 };
 
 // Load existing key, model, and custom prompts
