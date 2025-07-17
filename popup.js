@@ -61,6 +61,9 @@ function showKeyPreview(key) {
   }
 }
 
+// Display version number
+chrome.runtime.getManifest().version && (document.getElementById('version').textContent = 'v' + chrome.runtime.getManifest().version);
+
 // Rating functionality
 document.addEventListener('DOMContentLoaded', function() {
   const stars = document.querySelectorAll('.star');

@@ -188,6 +188,13 @@ body,
   font-weight: 600;
 }
 
+.version {
+  font-size: 0.75em;
+  font-weight: normal;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
 /* Settings Section */
 .settings-section {
   display: flex;
