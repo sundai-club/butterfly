@@ -34,8 +34,8 @@ const defaultPrompts = {
   twitter: "Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Avoid overused or clichéd phrases. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting."
 };
 
-// Load existing key, model, and custom prompts
-chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength'], (result) => {
+// Load existing key, model, custom prompts, and platform settings
+chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms'], (result) => {
   if (result.geminiApiKey) {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
@@ -54,6 +54,16 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
   
   // Set comment length slider, default to 1 (medium)
   document.getElementById('length-slider').value = result.commentLength !== undefined ? result.commentLength : 1;
+  
+  // Load platform settings with defaults (LinkedIn and Product Hunt on, Twitter off)
+  const enabledPlatforms = result.enabledPlatforms || {
+    linkedin: true,
+    twitter: false,
+    producthunt: true
+  };
+  document.getElementById('platform-linkedin').checked = enabledPlatforms.linkedin !== false;
+  document.getElementById('platform-twitter').checked = enabledPlatforms.twitter === true;
+  document.getElementById('platform-producthunt').checked = enabledPlatforms.producthunt !== false;
 });
 
 // Key preview is now handled in the auto-save listener above
@@ -228,6 +238,21 @@ document.getElementById('end-with-question').addEventListener('change', function
 document.getElementById('length-slider').addEventListener('input', function() {
   chrome.storage.sync.set({ commentLength: parseInt(this.value) });
 });
+
+// Auto-save platform settings
+function savePlatformSettings() {
+  const enabledPlatforms = {
+    linkedin: document.getElementById('platform-linkedin').checked,
+    twitter: document.getElementById('platform-twitter').checked,
+    producthunt: document.getElementById('platform-producthunt').checked
+  };
+  chrome.storage.sync.set({ enabledPlatforms });
+}
+
+// Add listeners for platform checkboxes
+document.getElementById('platform-linkedin').addEventListener('change', savePlatformSettings);
+document.getElementById('platform-twitter').addEventListener('change', savePlatformSettings);
+document.getElementById('platform-producthunt').addEventListener('change', savePlatformSettings);
 
 // Reset prompt functionality
 document.addEventListener('click', function(e) {

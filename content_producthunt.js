@@ -390,38 +390,53 @@ function findCommentBoxAndPost(postElement) {
 }
 
 function scanAndInjectProductHunt() {
-  // Selector for Product Hunt posts on listing pages (e.g., /posts) - this remains a general placeholder
-  const postItems = document.querySelectorAll('div[class*="styles_postItem_"], article[class*="postListItem"]');
-  postItems.forEach(postElement => {
-    const commentBoxInPostItem = findCommentBoxAndPost(postElement); // Tries to find a comment box *within* the post item summary
-    if (commentBoxInPostItem && !commentBoxInPostItem.dataset.butterflyPhInjected) {
-      console.log('[Butterfly PH] Found comment box in post item:', postElement, commentBoxInPostItem);
-      injectUI(commentBoxInPostItem, postElement);
-      commentBoxInPostItem.dataset.butterflyPhInjected = 'true';
+  // Check if Product Hunt is enabled
+  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+    const enabledPlatforms = result.enabledPlatforms || {
+      linkedin: true,
+      twitter: false,
+      producthunt: true
+    };
+    
+    // Only proceed if Product Hunt is enabled
+    if (!enabledPlatforms.producthunt) {
+      console.log('[Butterfly PH] Extension is disabled for Product Hunt');
+      return;
     }
-  });
+    
+    // Selector for Product Hunt posts on listing pages (e.g., /posts) - this remains a general placeholder
+    const postItems = document.querySelectorAll('div[class*="styles_postItem_"], article[class*="postListItem"]');
+    postItems.forEach(postElement => {
+      const commentBoxInPostItem = findCommentBoxAndPost(postElement); // Tries to find a comment box *within* the post item summary
+      if (commentBoxInPostItem && !commentBoxInPostItem.dataset.butterflyPhInjected) {
+        console.log('[Butterfly PH] Found comment box in post item:', postElement, commentBoxInPostItem);
+        injectUI(commentBoxInPostItem, postElement);
+        commentBoxInPostItem.dataset.butterflyPhInjected = 'true';
+      }
+    });
 
-  // Selector for the main comment form's editor on a single product page (based on provided HTML)
-  // This targets the contenteditable div within the form identified by data-test="comment-form"
-  const mainPageCommentEditor = document.querySelector('form[data-test="comment-form"] div.tiptap.ProseMirror[contenteditable="true"]');
-  if (mainPageCommentEditor && !mainPageCommentEditor.dataset.butterflyPhInjected) {
-    // For a single product page, the context for extractProductInfo is the whole document or main content area.
-    const productPageContext = document.querySelector('main') || document.body;
-    console.log('[Butterfly PH] Found main product page comment editor:', mainPageCommentEditor);
-    injectUI(mainPageCommentEditor, productPageContext);
-    mainPageCommentEditor.dataset.butterflyPhInjected = 'true';
-  }
-
-  // Fallback for other potential comment boxes not caught by the above (e.g., reply boxes)
-  // This looks for any TipTap editor that hasn't been processed yet.
-  const allCommentEditors = document.querySelectorAll('div.tiptap.ProseMirror[contenteditable="true"]');
-  allCommentEditors.forEach(editor => {
-    if (!editor.dataset.butterflyPhInjected) {
-      const postContext = editor.closest('div[class*="styles_postItem_"], article[class*="postListItem"], main') || document.body;
-      console.log('[Butterfly PH] Found fallback comment editor:', editor);
-      injectUI(editor, postContext);
-      editor.dataset.butterflyPhInjected = 'true';
+    // Selector for the main comment form's editor on a single product page (based on provided HTML)
+    // This targets the contenteditable div within the form identified by data-test="comment-form"
+    const mainPageCommentEditor = document.querySelector('form[data-test="comment-form"] div.tiptap.ProseMirror[contenteditable="true"]');
+    if (mainPageCommentEditor && !mainPageCommentEditor.dataset.butterflyPhInjected) {
+      // For a single product page, the context for extractProductInfo is the whole document or main content area.
+      const productPageContext = document.querySelector('main') || document.body;
+      console.log('[Butterfly PH] Found main product page comment editor:', mainPageCommentEditor);
+      injectUI(mainPageCommentEditor, productPageContext);
+      mainPageCommentEditor.dataset.butterflyPhInjected = 'true';
     }
+
+    // Fallback for other potential comment boxes not caught by the above (e.g., reply boxes)
+    // This looks for any TipTap editor that hasn't been processed yet.
+    const allCommentEditors = document.querySelectorAll('div.tiptap.ProseMirror[contenteditable="true"]');
+    allCommentEditors.forEach(editor => {
+      if (!editor.dataset.butterflyPhInjected) {
+        const postContext = editor.closest('div[class*="styles_postItem_"], article[class*="postListItem"], main') || document.body;
+        console.log('[Butterfly PH] Found fallback comment editor:', editor);
+        injectUI(editor, postContext);
+        editor.dataset.butterflyPhInjected = 'true';
+      }
+    });
   });
 }
 

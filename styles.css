@@ -202,6 +202,43 @@ body,
   gap: 6px;
 }
 
+/* Platform Settings Section */
+.platform-settings-section {
+  margin-top: 8px;
+}
+
+.platform-settings-section h3 {
+  font-size: 0.95em;
+  margin: 8px 0 6px 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.platform-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.platform-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.platform-checkbox input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.platform-checkbox label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 0.95em;
+  user-select: none;
+}
+
 .popup-container label {
   font-size: 0.98em;
   margin-bottom: 2px;

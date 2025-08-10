@@ -67,8 +67,23 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
 }
 
 function scanAndInject() {
-  const posts = document.querySelectorAll('[data-urn], .feed-shared-update-v2');
-  // posts.forEach(injectButterflyUI);
+  // Check if LinkedIn is enabled
+  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+    const enabledPlatforms = result.enabledPlatforms || {
+      linkedin: true,
+      twitter: false,
+      producthunt: true
+    };
+    
+    // Only proceed if LinkedIn is enabled
+    if (!enabledPlatforms.linkedin) {
+      console.log('[Butterfly LinkedIn] Extension is disabled for LinkedIn');
+      return;
+    }
+    
+    const posts = document.querySelectorAll('[data-urn], .feed-shared-update-v2');
+    // posts.forEach(injectButterflyUI);
+  });
 }
 
 // --- SPA Navigation & Robust Observer Fix ---

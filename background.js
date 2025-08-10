@@ -27,13 +27,26 @@ loadSlopLists();
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GEMINI_SUGGEST') {
     const { site, postText, postAuthor, refinement, currentComment } = message; // Added site
-    // Get API key, model, custom prompts, endWithQuestion, and commentLength from storage
-    chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength'], (result) => {
+    // Get API key, model, custom prompts, endWithQuestion, commentLength, and platform settings from storage
+    chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms'], (result) => {
       const apiKey = result.geminiApiKey;
       const model = result.geminiModel || 'gemini-2.5-flash';
       const customPrompts = result.customPrompts || {};
       const endWithQuestion = result.endWithQuestion || false;
       const commentLength = result.commentLength !== undefined ? result.commentLength : 1; // Default to medium
+      
+      // Check if platform is enabled
+      const enabledPlatforms = result.enabledPlatforms || {
+        linkedin: true,
+        twitter: false,
+        producthunt: true
+      };
+      
+      if (!enabledPlatforms[site]) {
+        sendResponse({ suggestion: `Butterfly is disabled for ${site}. Enable it in extension settings.` });
+        return;
+      }
+      
       if (!apiKey) {
         sendResponse({ suggestion: 'Set Gemini API key in extension settings.' });
         return;

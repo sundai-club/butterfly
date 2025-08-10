@@ -531,15 +531,30 @@ function findTweetElement(commentBox) {
 }
 
 function scanAndInjectTwitter() {
-  const commentBoxes = findCommentBoxes();
-  
-  commentBoxes.forEach(commentBox => {
-    if (!commentBox.dataset.butterflyTwitterInjected) {
-      const tweetElement = findTweetElement(commentBox);
-      console.log('[Butterfly Twitter] Found reply box:', commentBox);
-      injectUI(commentBox, tweetElement);
-      commentBox.dataset.butterflyTwitterInjected = 'true';
+  // Check if Twitter/X is enabled
+  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+    const enabledPlatforms = result.enabledPlatforms || {
+      linkedin: true,
+      twitter: false,
+      producthunt: true
+    };
+    
+    // Only proceed if Twitter is enabled
+    if (!enabledPlatforms.twitter) {
+      console.log('[Butterfly Twitter] Extension is disabled for Twitter/X');
+      return;
     }
+    
+    const commentBoxes = findCommentBoxes();
+    
+    commentBoxes.forEach(commentBox => {
+      if (!commentBox.dataset.butterflyTwitterInjected) {
+        const tweetElement = findTweetElement(commentBox);
+        console.log('[Butterfly Twitter] Found reply box:', commentBox);
+        injectUI(commentBox, tweetElement);
+        commentBox.dataset.butterflyTwitterInjected = 'true';
+      }
+    });
   });
   
   // Debug: Check if main composer is being correctly excluded
