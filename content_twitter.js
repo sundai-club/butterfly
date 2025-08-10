@@ -200,7 +200,12 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
     const result = await getGeminiSuggestionForTwitter(postText, postAuthor);
 
-    if (result.suggestions && result.suggestions.length > 0) {
+    if (result.error) {
+      console.error('[Butterfly Twitter] Auto-suggestion error:', result.error);
+      // Display error message directly in the comment field
+      const errorMessage = `[Error: ${result.error}]`;
+      setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly Twitter] Auto-suggestion applied.');
       addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
@@ -404,7 +409,11 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, sug
     let currentComment = commentBox.isContentEditable ? commentBox.innerText : commentBox.value;
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
     const result = await getGeminiSuggestionForTwitter(postText, postAuthor, instructions, currentComment);
-    if (result.suggestions && result.suggestions.length > 0) {
+    if (result.error) {
+      // Display error message directly in the comment field
+      const errorMessage = `[Error: ${result.error}]`;
+      setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addVariantsDropdown(commentBox, result.suggestions, 0);
     } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
@@ -456,7 +465,11 @@ function injectUI(commentBox, tweetElement) {
     suggestBtn.textContent = 'Thinking...';
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
     const result = await getGeminiSuggestionForTwitter(postText, postAuthor);
-    if (result.suggestions && result.suggestions.length > 0) {
+    if (result.error) {
+      // Display error message directly in the comment field
+      const errorMessage = `[Error: ${result.error}]`;
+      setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
       addVariantsDropdown(commentBox, result.suggestions, 0);

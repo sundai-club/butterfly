@@ -257,6 +257,8 @@ document.addEventListener('click', function(e) {
     const textarea = document.getElementById(platform + '-prompt');
     if (textarea && defaultPrompts[platform]) {
       textarea.value = defaultPrompts[platform];
+      // Auto-save the reset prompt
+      autoSavePrompts();
     }
   }
 });

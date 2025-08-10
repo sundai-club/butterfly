@@ -166,6 +166,9 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
 
     if (result.error) {
       console.error('[Butterfly PH] Auto-suggestion error:', result.error);
+      // Display error message directly in the comment field
+      const errorMessage = `[Error: ${result.error}]`;
+      setCommentBoxValue(commentBox, errorMessage);
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly PH] Auto-suggestion applied.');
@@ -219,7 +222,11 @@ function injectUI(commentBox, postElement) {
     suggestBtn.textContent = 'Thinking...';
     const { postText, postAuthor } = extractProductInfo(postElement);
     const result = await getGeminiSuggestionForProductHunt(postText, postAuthor);
-    if (result.suggestions && result.suggestions.length > 0) {
+    if (result.error) {
+      // Display error message directly in the comment field
+      const errorMessage = `[Error: ${result.error}]`;
+      setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addInteractionButtons(commentBox, postElement, suggestBtn, result.suggestions);
       addVariantsDropdown(commentBox, result.suggestions, 0);
@@ -369,7 +376,11 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance, sugg
     let currentCommentText = commentBox.isContentEditable ? commentBox.innerText : commentBox.value;
     const { postText, postAuthor } = extractProductInfo(postElement);
     const result = await getGeminiSuggestionForProductHunt(postText, postAuthor, instructions, currentCommentText);
-    if (result.suggestions && result.suggestions.length > 0) {
+    if (result.error) {
+      // Display error message directly in the comment field
+      const errorMessage = `[Error: ${result.error}]`;
+      setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addVariantsDropdown(commentBox, result.suggestions, 0);
     } else if (result.suggestion) {

@@ -238,6 +238,9 @@ const butterflyLastFillTime = new WeakMap();
       
       if (result.error) {
         console.error('[Butterfly] Auto-suggestion error:', result.error);
+        // Display error message directly in the comment field
+        const errorMessage = `[Error: ${result.error}]`;
+        setCommentBoxValue(box, errorMessage);
       } else if (result.suggestions && result.suggestions.length > 0) {
         // Use the first suggestion as the default
         setCommentBoxValue(box, result.suggestions[0]);
@@ -399,7 +402,11 @@ const butterflyLastFillTime = new WeakMap();
       let currentComment = box.isContentEditable ? box.innerText : box.value;
       const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
-      if (result.suggestions && result.suggestions.length > 0) {
+      if (result.error) {
+        // Display error message directly in the comment field
+        const errorMessage = `[Error: ${result.error}]`;
+        setCommentBoxValue(box, errorMessage);
+      } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addVariantsDropdown(box, result.suggestions, 0);
       } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
@@ -459,7 +466,11 @@ const butterflyLastFillTime = new WeakMap();
       suggestBtn.textContent = 'Thinking...';
       const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor);
-      if (result.suggestions && result.suggestions.length > 0) {
+      if (result.error) {
+        // Display error message directly in the comment field
+        const errorMessage = `[Error: ${result.error}]`;
+        setCommentBoxValue(box, errorMessage);
+      } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
         addVariantsDropdown(box, result.suggestions, 0);
