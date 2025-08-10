@@ -1,14 +1,20 @@
-// popup.js - Save Gemini API key
+// popup.js - Auto-save Gemini API key and model
 
-document.getElementById('save-btn').onclick = function () {
-  const key = document.getElementById('api-key').value.trim();
-  const model = document.getElementById('model-picker').value;
-  chrome.storage.sync.set({ geminiApiKey: key, geminiModel: model }, () => {
-    document.getElementById('save-btn').textContent = 'Saved!';
-    setTimeout(() => { document.getElementById('save-btn').textContent = 'Save'; }, 1500);
-    showKeyPreview(key);
-  });
-};
+// Auto-save API key with debouncing
+let apiKeyTimeout;
+document.getElementById('api-key').addEventListener('input', function() {
+  clearTimeout(apiKeyTimeout);
+  const key = this.value.trim();
+  showKeyPreview(key);
+  apiKeyTimeout = setTimeout(() => {
+    chrome.storage.sync.set({ geminiApiKey: key });
+  }, 500); // Debounce for 500ms
+});
+
+// Auto-save model selection
+document.getElementById('model-picker').addEventListener('change', function() {
+  chrome.storage.sync.set({ geminiModel: this.value });
+});
 
 // Default prompts for each platform
 const defaultPrompts = {
@@ -18,7 +24,7 @@ const defaultPrompts = {
 };
 
 // Load existing key, model, and custom prompts
-chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts'], (result) => {
+chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion'], (result) => {
   if (result.geminiApiKey) {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
@@ -31,11 +37,12 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts'], (resul
   document.getElementById('linkedin-prompt').value = customPrompts.linkedin || defaultPrompts.linkedin;
   document.getElementById('producthunt-prompt').value = customPrompts.producthunt || defaultPrompts.producthunt;
   document.getElementById('twitter-prompt').value = customPrompts.twitter || defaultPrompts.twitter;
+  
+  // Set end with question checkbox
+  document.getElementById('end-with-question').checked = result.endWithQuestion || false;
 });
 
-document.getElementById('api-key').addEventListener('input', function () {
-  showKeyPreview(this.value.trim());
-});
+// Key preview is now handled in the auto-save listener above
 
 // Show/hide API key functionality
 const apiKeyInput = document.getElementById('api-key');
@@ -120,24 +127,28 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Save prompts functionality
-document.getElementById('save-prompts-btn').addEventListener('click', function() {
-  const customPrompts = {
-    linkedin: document.getElementById('linkedin-prompt').value,
-    producthunt: document.getElementById('producthunt-prompt').value,
-    twitter: document.getElementById('twitter-prompt').value
-  };
-  
-  chrome.storage.sync.set({ customPrompts }, () => {
-    const originalText = this.textContent;
-    this.textContent = 'Saved!';
-    this.style.background = 'var(--button-bg-alt)';
-    
-    setTimeout(() => {
-      this.textContent = originalText;
-      this.style.background = '';
-    }, 1500);
-  });
+// Auto-save prompts with debouncing
+let saveTimeout;
+function autoSavePrompts() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    const customPrompts = {
+      linkedin: document.getElementById('linkedin-prompt').value,
+      producthunt: document.getElementById('producthunt-prompt').value,
+      twitter: document.getElementById('twitter-prompt').value
+    };
+    chrome.storage.sync.set({ customPrompts });
+  }, 500); // Debounce for 500ms
+}
+
+// Add auto-save listeners to all prompt textareas
+document.getElementById('linkedin-prompt').addEventListener('input', autoSavePrompts);
+document.getElementById('producthunt-prompt').addEventListener('input', autoSavePrompts);
+document.getElementById('twitter-prompt').addEventListener('input', autoSavePrompts);
+
+// Auto-save end with question checkbox
+document.getElementById('end-with-question').addEventListener('change', function() {
+  chrome.storage.sync.set({ endWithQuestion: this.checked });
 });
 
 // Reset prompt functionality

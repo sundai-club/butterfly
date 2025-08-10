@@ -241,6 +241,26 @@ body,
   outline: none;
 }
 
+/* Question toggle */
+.question-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.question-toggle input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.question-toggle label {
+  margin: 0;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
 .popup-container button {
   width: 100%;
   padding: 8px 0;
