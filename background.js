@@ -114,7 +114,7 @@ function getSlopWordsInstruction() {
   const allBigrams = slopBigrams.join(', ');
   const allTrigrams = slopTrigrams.join(', ');
   
-  let instruction = '\n\nIMPORTANT: Avoid using ANY of these overused or clichéd words and phrases. Write in a natural, authentic voice without these AI-writing patterns.';
+  let instruction = '\n\nIMPORTANT: Avoid using ANY of these overused or clichéd words and phrases. Write in a natural, authentic voice using simple, clear language without these AI-writing patterns.';
   
   if (slopWords.length > 0) {
     instruction += `\n\nForbidden single words: ${allWords}`;
