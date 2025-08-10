@@ -10,7 +10,34 @@ function isExtensionContextValid() {
 }
 
 // New function to extract both post text and author
-function extractPostInfo(postElement) {
+function extractPostInfo(postElement, commentBox) {
+  // Check if this is a reply to a comment
+  if (commentBox) {
+    // Try to find the parent comment container
+    const parentComment = commentBox.closest('.comments-comment-item') || 
+                          commentBox.closest('.comments-post-meta__profile-info-wrapper')?.closest('.comments-comment-item');
+    
+    if (parentComment) {
+      // Extract parent comment text
+      const commentTextElem = parentComment.querySelector('.comments-comment-item__main-content') ||
+                              parentComment.querySelector('.comments-comment-texteditor') ||
+                              parentComment.querySelector('[data-test-app-aware-link]');
+      
+      // Extract parent comment author
+      const commentAuthorElem = parentComment.querySelector('.comments-post-meta__name-text') ||
+                                parentComment.querySelector('.comments-post-meta__profile-name') ||
+                                parentComment.querySelector('.comments-post-meta__headline');
+      
+      if (commentTextElem || commentAuthorElem) {
+        const postText = commentTextElem ? commentTextElem.innerText.trim() : '';
+        const postAuthor = commentAuthorElem ? commentAuthorElem.innerText.trim() : '';
+        console.log('[Butterfly] Replying to comment - Author:', postAuthor, 'Text:', postText);
+        return { postText, postAuthor };
+      }
+    }
+  }
+  
+  // Fallback to main post extraction
   // Try to extract the main post text
   const mainTextElem = postElement.querySelector('[data-ad-preview="message"]') || postElement.querySelector('.feed-shared-update-v2__description');
   const postText = mainTextElem ? mainTextElem.innerText.trim() : '';
@@ -182,7 +209,7 @@ const butterflyLastFillTime = new WeakMap();
       const uiContainer = suggestBtn.parentElement;
       uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.style.display = 'none');
       
-      const { postText, postAuthor } = extractPostInfo(postElement);
+      const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       
       if (result.suggestions && result.suggestions.length > 0) {
@@ -344,7 +371,7 @@ const butterflyLastFillTime = new WeakMap();
       
       // Get the current value of the comment box
       let currentComment = box.isContentEditable ? box.innerText : box.value;
-      const { postText, postAuthor } = extractPostInfo(postElement);
+      const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
       if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
@@ -404,7 +431,7 @@ const butterflyLastFillTime = new WeakMap();
       const originalText = suggestBtn.textContent;
       suggestBtn.disabled = true;
       suggestBtn.textContent = 'Thinking...';
-      const { postText, postAuthor } = extractPostInfo(postElement);
+      const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
