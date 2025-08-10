@@ -93,23 +93,39 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
 }
 
 function scanAndInject() {
+  // Check if extension context is still valid
+  if (!isExtensionContextValid()) {
+    console.log('[Butterfly LinkedIn] Extension context invalidated, stopping scan');
+    return;
+  }
+  
   // Check if LinkedIn is enabled
-  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
-    const enabledPlatforms = result.enabledPlatforms || {
-      linkedin: true,
-      twitter: false,
-      producthunt: true
-    };
-    
-    // Only proceed if LinkedIn is enabled
-    if (!enabledPlatforms.linkedin) {
-      console.log('[Butterfly LinkedIn] Extension is disabled for LinkedIn');
-      return;
-    }
-    
-    const posts = document.querySelectorAll('[data-urn], .feed-shared-update-v2');
-    // posts.forEach(injectButterflyUI);
-  });
+  try {
+    chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+      // Check for chrome.runtime.lastError which indicates context issues
+      if (chrome.runtime.lastError) {
+        console.log('[Butterfly LinkedIn] Chrome runtime error:', chrome.runtime.lastError);
+        return;
+      }
+      
+      const enabledPlatforms = result.enabledPlatforms || {
+        linkedin: true,
+        twitter: false,
+        producthunt: true
+      };
+      
+      // Only proceed if LinkedIn is enabled
+      if (!enabledPlatforms.linkedin) {
+        console.log('[Butterfly LinkedIn] Extension is disabled for LinkedIn');
+        return;
+      }
+      
+      const posts = document.querySelectorAll('[data-urn], .feed-shared-update-v2');
+      // posts.forEach(injectButterflyUI);
+    });
+  } catch (error) {
+    console.log('[Butterfly LinkedIn] Error accessing storage:', error);
+  }
 }
 
 // --- SPA Navigation & Robust Observer Fix ---
@@ -157,7 +173,13 @@ window.addEventListener('locationchange', onUrlChange);
 scanAndInject();
 observeFeed();
 // Fallback: periodic scan in case observer misses something
-setInterval(() => {
+const scanInterval = setInterval(() => {
+  // Stop scanning if extension context is invalidated
+  if (!isExtensionContextValid()) {
+    clearInterval(scanInterval);
+    console.log('[Butterfly LinkedIn] Stopping periodic scan due to context invalidation');
+    return;
+  }
   scanAndInject();
   observeFeed();
 }, 2000);
