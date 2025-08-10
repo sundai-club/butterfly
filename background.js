@@ -39,9 +39,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       // Pass model, customPrompts, endWithQuestion, and commentLength to fetchGeminiSuggestion
-      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
-        .then((suggestion) => {
-          sendResponse({ suggestion });
+      fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
+        .then((suggestions) => {
+          sendResponse({ suggestions });
         })
         .catch((e) => {
           console.error('Gemini API error:', e);
@@ -151,4 +151,36 @@ Post content: "${postText}"`;
     throw new Error((data && data.error && data.error.message) ? data.error.message : 'HTTP ' + res.status);
   }
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// Generate multiple suggestions
+async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1) {
+  // Generate 4 variants in parallel
+  const promises = [];
+  for (let i = 0; i < 4; i++) {
+    promises.push(
+      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
+        .catch(err => '') // If one fails, return empty string
+    );
+  }
+  
+  const suggestions = await Promise.all(promises);
+  // Filter out empty suggestions and ensure uniqueness
+  const uniqueSuggestions = [...new Set(suggestions.filter(s => s && s.trim()))];
+  
+  // If we don't have enough unique suggestions, try to generate more
+  while (uniqueSuggestions.length < 4 && uniqueSuggestions.length > 0) {
+    const newSuggestion = await fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
+      .catch(err => '');
+    if (newSuggestion && !uniqueSuggestions.includes(newSuggestion)) {
+      uniqueSuggestions.push(newSuggestion);
+    }
+    // Prevent infinite loop
+    if (uniqueSuggestions.length === 1) {
+      // If we can only get one unique suggestion, duplicate it for now
+      break;
+    }
+  }
+  
+  return uniqueSuggestions;
 }

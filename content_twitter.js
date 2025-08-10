@@ -124,15 +124,22 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
         (response) => {
           if (chrome.runtime.lastError) {
             console.error('[Butterfly Twitter] Extension context error:', chrome.runtime.lastError);
-            resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+            resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
             return;
           }
-          resolve(response && response.suggestion);
+          // Handle both single suggestion (backward compatibility) and multiple suggestions
+          if (response && response.suggestions) {
+            resolve({ suggestions: response.suggestions });
+          } else if (response && response.suggestion) {
+            resolve({ suggestion: response.suggestion });
+          } else {
+            resolve({ error: 'No suggestion received' });
+          }
         }
       );
     } catch (error) {
       console.error('[Butterfly Twitter] Failed to send message:', error);
-      resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+      resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
     }
   });
 }
@@ -153,10 +160,15 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
     uiContainer.querySelectorAll('.butterfly-twitter-refine-btn').forEach(btn => btn.style.display = 'none');
 
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
-    const suggestion = await getGeminiSuggestionForTwitter(postText, postAuthor);
+    const result = await getGeminiSuggestionForTwitter(postText, postAuthor);
 
-    if (suggestion && !suggestion.includes('Extension was updated')) {
-      setCommentBoxValue(commentBox, suggestion);
+    if (result.suggestions && result.suggestions.length > 0) {
+      setCommentBoxValue(commentBox, result.suggestions[0]);
+      console.log('[Butterfly Twitter] Auto-suggestion applied.');
+      addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
+      addVariantsDropdown(commentBox, result.suggestions, 0);
+    } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
+      setCommentBoxValue(commentBox, result.suggestion);
       console.log('[Butterfly Twitter] Auto-suggestion applied.');
       addInteractionButtons(commentBox, tweetElement, suggestBtn);
     } else {
@@ -169,7 +181,100 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
   }
 }
 
-function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance) {
+function addVariantsDropdown(commentBox, suggestions, currentIndex = 0) {
+  // Remove existing dropdown if any
+  const existingDropdown = commentBox.parentElement.querySelector('.butterfly-variants-container');
+  if (existingDropdown) {
+    existingDropdown.remove();
+  }
+  
+  if (!suggestions || suggestions.length <= 1) return;
+  
+  // Create variants container
+  const variantsContainer = document.createElement('div');
+  variantsContainer.className = 'butterfly-variants-container';
+  variantsContainer.style.cssText = 'position: relative; display: inline-block;';
+  
+  // Create variants button
+  const variantsBtn = document.createElement('button');
+  variantsBtn.className = 'butterfly-variants-btn butterfly-btn';
+  variantsBtn.textContent = 'All variants ▼';
+  variantsBtn.style.cssText = 'background-color: #6B46C1; color: white; padding: 6px 12px; border: 1px solid #553C9A; border-radius: 5px; cursor: pointer; font-size: 0.85em; font-weight: 500; margin-left: 5px; margin-top: 5px;';
+  
+  // Create dropdown menu
+  const dropdown = document.createElement('div');
+  dropdown.className = 'butterfly-variants-dropdown';
+  dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
+  
+  // Add each variant to dropdown
+  suggestions.forEach((suggestion, index) => {
+    const option = document.createElement('div');
+    option.className = 'butterfly-variant-option';
+    option.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #e1e4e8; font-size: 0.85em; line-height: 1.4; color: black;';
+    if (index === currentIndex) {
+      option.style.backgroundColor = '#f3f6fb';
+      option.style.fontWeight = '500';
+    }
+    
+    // Truncate long suggestions for preview
+    const displayText = suggestion.length > 100 ? suggestion.substring(0, 100) + '...' : suggestion;
+    option.textContent = `${index + 1}. ${displayText}`;
+    
+    option.onmouseover = () => {
+      if (index !== currentIndex) {
+        option.style.backgroundColor = '#f8f9fa';
+      }
+    };
+    
+    option.onmouseout = () => {
+      if (index !== currentIndex) {
+        option.style.backgroundColor = 'white';
+      }
+    };
+    
+    option.onclick = () => {
+      setCommentBoxValue(commentBox, suggestion);
+      dropdown.style.display = 'none';
+      // Update current selection styling
+      dropdown.querySelectorAll('.butterfly-variant-option').forEach((opt, i) => {
+        opt.style.backgroundColor = i === index ? '#f3f6fb' : 'white';
+        opt.style.fontWeight = i === index ? '500' : 'normal';
+      });
+    };
+    
+    dropdown.appendChild(option);
+  });
+  
+  // Toggle dropdown on button click
+  variantsBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  };
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!variantsContainer.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+  
+  variantsContainer.appendChild(variantsBtn);
+  variantsContainer.appendChild(dropdown);
+  
+  // Insert after the Refine button or after the comment box
+  const refineBtn = commentBox.parentElement.querySelector('.butterfly-twitter-refine-btn');
+  if (refineBtn) {
+    refineBtn.parentElement.insertBefore(variantsContainer, refineBtn.nextSibling);
+  } else {
+    const uiContainer = commentBox.parentElement.querySelector('.butterfly-ui-container');
+    if (uiContainer) {
+      uiContainer.appendChild(variantsContainer);
+    }
+  }
+}
+
+function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, suggestions = null) {
   const uiContainer = commentBox.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + commentBox.dataset.butterflyId + '"]');
   if (!uiContainer) {
     console.error("[Butterfly Twitter] UI container not found for interaction buttons.");
@@ -209,9 +314,12 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance) {
     
     let currentComment = commentBox.isContentEditable ? commentBox.innerText : commentBox.value;
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
-    const newSuggestion = await getGeminiSuggestionForTwitter(postText, postAuthor, instructions, currentComment);
-    if (newSuggestion && !newSuggestion.includes('Extension was updated')) {
-      setCommentBoxValue(commentBox, newSuggestion);
+    const result = await getGeminiSuggestionForTwitter(postText, postAuthor, instructions, currentComment);
+    if (result.suggestions && result.suggestions.length > 0) {
+      setCommentBoxValue(commentBox, result.suggestions[0]);
+      addVariantsDropdown(commentBox, result.suggestions, 0);
+    } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
+      setCommentBoxValue(commentBox, result.suggestion);
     }
     
     refineBtn.disabled = false;
@@ -258,9 +366,13 @@ function injectUI(commentBox, tweetElement) {
     suggestBtn.disabled = true;
     suggestBtn.textContent = 'Thinking...';
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
-    const suggestion = await getGeminiSuggestionForTwitter(postText, postAuthor);
-    if (suggestion && !suggestion.includes('Extension was updated')) {
-      setCommentBoxValue(commentBox, suggestion);
+    const result = await getGeminiSuggestionForTwitter(postText, postAuthor);
+    if (result.suggestions && result.suggestions.length > 0) {
+      setCommentBoxValue(commentBox, result.suggestions[0]);
+      addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
+      addVariantsDropdown(commentBox, result.suggestions, 0);
+    } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
+      setCommentBoxValue(commentBox, result.suggestion);
       addInteractionButtons(commentBox, tweetElement, suggestBtn);
     }
     suggestBtn.disabled = false;
@@ -285,13 +397,43 @@ function findCommentBoxes() {
   for (const selector of selectors) {
     const boxes = document.querySelectorAll(selector);
     boxes.forEach(box => {
-      if (!commentBoxes.includes(box)) {
+      // Check if this is a reply box, not the main tweet composer
+      const isReply = isReplyBox(box);
+      if (isReply && !commentBoxes.includes(box)) {
         commentBoxes.push(box);
       }
     });
   }
   
   return commentBoxes;
+}
+
+function isReplyBox(box) {
+  // Check if the box has a reply-related placeholder
+  const placeholder = box.getAttribute('placeholder') || 
+                     box.getAttribute('aria-label') || '';
+  if (placeholder.toLowerCase().includes('reply')) {
+    return true;
+  }
+  
+  // Check if it's inside a reply modal or thread
+  const inReplyModal = box.closest('[aria-labelledby="modal-header"]') !== null;
+  const inReplyThread = box.closest('[data-testid="reply"]') !== null;
+  
+  // Check if it's in the conversation/thread view (URL contains /status/)
+  const inStatusThread = window.location.pathname.includes('/status/');
+  
+  // Check if it's NOT the main composer
+  // Main composer is usually at the top of the home timeline
+  const isMainComposer = box.closest('[data-testid="primaryColumn"] > div > div:first-child') !== null ||
+                        box.closest('[data-testid="tweetButtonInline"]') !== null;
+  
+  // It's a reply box if:
+  // 1. It's in a reply modal OR
+  // 2. It's in a reply thread OR  
+  // 3. It's in a status thread view OR
+  // 4. It has reply placeholder AND is not the main composer
+  return (inReplyModal || inReplyThread || inStatusThread) && !isMainComposer;
 }
 
 function findTweetElement(commentBox) {
@@ -308,11 +450,17 @@ function scanAndInjectTwitter() {
   commentBoxes.forEach(commentBox => {
     if (!commentBox.dataset.butterflyTwitterInjected) {
       const tweetElement = findTweetElement(commentBox);
-      console.log('[Butterfly Twitter] Found comment box:', commentBox);
+      console.log('[Butterfly Twitter] Found reply box:', commentBox);
       injectUI(commentBox, tweetElement);
       commentBox.dataset.butterflyTwitterInjected = 'true';
     }
   });
+  
+  // Debug: Check if main composer is being correctly excluded
+  const mainComposer = document.querySelector('[data-testid="tweetTextarea_0"]');
+  if (mainComposer && !isReplyBox(mainComposer)) {
+    console.log('[Butterfly Twitter] Main composer excluded (working as intended)');
+  }
 }
 
 // SPA Navigation handling

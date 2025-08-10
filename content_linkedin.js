@@ -47,14 +47,21 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
         // Check for chrome.runtime.lastError which indicates extension context issues
         if (chrome.runtime.lastError) {
           console.error('[Butterfly] Extension context error:', chrome.runtime.lastError);
-          resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+          resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
           return;
         }
-        resolve(response && response.suggestion);
+        // Handle both single suggestion (backward compatibility) and multiple suggestions
+        if (response && response.suggestions) {
+          resolve({ suggestions: response.suggestions });
+        } else if (response && response.suggestion) {
+          resolve({ suggestion: response.suggestion });
+        } else {
+          resolve({ error: 'No suggestion received' });
+        }
       });
     } catch (error) {
       console.error('[Butterfly] Failed to send message:', error);
-      resolve('Extension was updated. Please refresh the page to continue using Butterfly.');
+      resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
     }
   });
 }
@@ -161,10 +168,16 @@ const butterflyLastFillTime = new WeakMap();
       uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.style.display = 'none');
       
       const { postText, postAuthor } = extractPostInfo(postElement);
-      const suggestion = await getGeminiSuggestion(postText, postAuthor);
+      const result = await getGeminiSuggestion(postText, postAuthor);
       
-      if (suggestion && !suggestion.includes('Extension was updated')) {
-        setCommentBoxValue(box, suggestion);
+      if (result.suggestions && result.suggestions.length > 0) {
+        // Use the first suggestion as the default
+        setCommentBoxValue(box, result.suggestions[0]);
+        console.log('[Butterfly] Auto-suggestion applied.');
+        addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
+        addVariantsDropdown(box, result.suggestions, 0);
+      } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
+        setCommentBoxValue(box, result.suggestion);
         console.log('[Butterfly] Auto-suggestion applied.');
         addInteractionButtons(box, postElement, suggestBtn);
       } else {
@@ -177,7 +190,100 @@ const butterflyLastFillTime = new WeakMap();
     }
   }
 
-  function addInteractionButtons(box, postElement, suggestBtnInstance) {
+  function addVariantsDropdown(box, suggestions, currentIndex = 0) {
+    // Remove existing dropdown if any
+    const existingDropdown = box.parentElement.querySelector('.butterfly-variants-container');
+    if (existingDropdown) {
+      existingDropdown.remove();
+    }
+    
+    if (!suggestions || suggestions.length <= 1) return;
+    
+    // Create variants container
+    const variantsContainer = document.createElement('div');
+    variantsContainer.className = 'butterfly-variants-container';
+    variantsContainer.style.cssText = 'position: relative; display: inline-block;';
+    
+    // Create variants button
+    const variantsBtn = document.createElement('button');
+    variantsBtn.className = 'butterfly-variants-btn butterfly-btn';
+    variantsBtn.textContent = 'All variants ▼';
+    variantsBtn.style.cssText = 'background-color: #6B46C1; color: white; padding: 6px 12px; border: 1px solid #553C9A; border-radius: 5px; cursor: pointer; font-size: 0.85em; font-weight: 500; margin-left: 5px; margin-top: 5px;';
+    
+    // Create dropdown menu
+    const dropdown = document.createElement('div');
+    dropdown.className = 'butterfly-variants-dropdown';
+    dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
+    
+    // Add each variant to dropdown
+    suggestions.forEach((suggestion, index) => {
+      const option = document.createElement('div');
+      option.className = 'butterfly-variant-option';
+      option.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #e1e4e8; font-size: 0.85em; line-height: 1.4;';
+      if (index === currentIndex) {
+        option.style.backgroundColor = '#f3f6fb';
+        option.style.fontWeight = '500';
+      }
+      
+      // Truncate long suggestions for preview
+      const displayText = suggestion.length > 100 ? suggestion.substring(0, 100) + '...' : suggestion;
+      option.textContent = `${index + 1}. ${displayText}`;
+      
+      option.onmouseover = () => {
+        if (index !== currentIndex) {
+          option.style.backgroundColor = '#f8f9fa';
+        }
+      };
+      
+      option.onmouseout = () => {
+        if (index !== currentIndex) {
+          option.style.backgroundColor = 'white';
+        }
+      };
+      
+      option.onclick = () => {
+        setCommentBoxValue(box, suggestion);
+        dropdown.style.display = 'none';
+        // Update current selection styling
+        dropdown.querySelectorAll('.butterfly-variant-option').forEach((opt, i) => {
+          opt.style.backgroundColor = i === index ? '#f3f6fb' : 'white';
+          opt.style.fontWeight = i === index ? '500' : 'normal';
+        });
+      };
+      
+      dropdown.appendChild(option);
+    });
+    
+    // Toggle dropdown on button click
+    variantsBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    };
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!variantsContainer.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+    
+    variantsContainer.appendChild(variantsBtn);
+    variantsContainer.appendChild(dropdown);
+    
+    // Insert after the Refine button or after the comment box
+    const refineBtn = box.parentElement.querySelector('.butterfly-refine-btn');
+    if (refineBtn) {
+      refineBtn.parentElement.insertBefore(variantsContainer, refineBtn.nextSibling);
+    } else {
+      const uiContainer = box.parentElement.querySelector('.butterfly-ui-container');
+      if (uiContainer) {
+        uiContainer.appendChild(variantsContainer);
+      }
+    }
+  }
+  
+  function addInteractionButtons(box, postElement, suggestBtnInstance, suggestions = null) {
     const uiContainer = box.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]');
     if (!uiContainer) {
       console.error("[Butterfly] UI container not found for interaction buttons.");
@@ -221,9 +327,12 @@ const butterflyLastFillTime = new WeakMap();
       // Get the current value of the comment box
       let currentComment = box.isContentEditable ? box.innerText : box.value;
       const { postText, postAuthor } = extractPostInfo(postElement);
-      const newSuggestion = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
-      if (newSuggestion && !newSuggestion.includes('Extension was updated')) {
-        setCommentBoxValue(box, newSuggestion);
+      const result = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
+      if (result.suggestions && result.suggestions.length > 0) {
+        setCommentBoxValue(box, result.suggestions[0]);
+        addVariantsDropdown(box, result.suggestions, 0);
+      } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
+        setCommentBoxValue(box, result.suggestion);
       }
       
       refineBtn.disabled = false;
@@ -278,9 +387,13 @@ const butterflyLastFillTime = new WeakMap();
       suggestBtn.disabled = true;
       suggestBtn.textContent = 'Thinking...';
       const { postText, postAuthor } = extractPostInfo(postElement);
-      const suggestion = await getGeminiSuggestion(postText, postAuthor);
-      if (suggestion && !suggestion.includes('Extension was updated')) {
-        setCommentBoxValue(box, suggestion);
+      const result = await getGeminiSuggestion(postText, postAuthor);
+      if (result.suggestions && result.suggestions.length > 0) {
+        setCommentBoxValue(box, result.suggestions[0]);
+        addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
+        addVariantsDropdown(box, result.suggestions, 0);
+      } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
+        setCommentBoxValue(box, result.suggestion);
         addInteractionButtons(box, postElement, suggestBtn);
       }
       suggestBtn.disabled = false;
