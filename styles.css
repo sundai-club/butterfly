@@ -676,6 +676,16 @@ body,
   padding: 4px 10px !important;
   font-size: 0.75em !important;
   height: auto !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fbbf24 !important;
+}
+
+.modified-indicator-container .reset-prompt-btn:hover {
+  background: #fde68a !important;
+  color: #78350f !important;
 }
 
 .tab-pane {
