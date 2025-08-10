@@ -638,10 +638,39 @@ body,
   background: transparent !important;
 }
 
+.tab-btn.modified {
+  position: relative;
+}
+
+.tab-btn.modified::after {
+  content: '•';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  color: #f59e0b;
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.tab-btn.modified.active {
+  color: #f59e0b !important;
+  border-bottom-color: #f59e0b !important;
+}
+
 /* Tab Content */
 .tab-content {
   position: relative;
   min-height: 60px;
+}
+
+.modified-indicator {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  margin-bottom: 8px;
+  display: inline-block;
 }
 
 .tab-pane {

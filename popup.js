@@ -224,9 +224,18 @@ function autoSavePrompts() {
 }
 
 // Add auto-save listeners to all prompt textareas
-document.getElementById('linkedin-prompt').addEventListener('input', autoSavePrompts);
-document.getElementById('producthunt-prompt').addEventListener('input', autoSavePrompts);
-document.getElementById('twitter-prompt').addEventListener('input', autoSavePrompts);
+document.getElementById('linkedin-prompt').addEventListener('input', function() {
+  autoSavePrompts();
+  checkModifiedPrompts();
+});
+document.getElementById('producthunt-prompt').addEventListener('input', function() {
+  autoSavePrompts();
+  checkModifiedPrompts();
+});
+document.getElementById('twitter-prompt').addEventListener('input', function() {
+  autoSavePrompts();
+  checkModifiedPrompts();
+});
 
 // Auto-save end with question checkbox
 document.getElementById('end-with-question').addEventListener('change', function() {
@@ -267,9 +276,47 @@ document.addEventListener('click', function(e) {
       textarea.value = defaultPrompts[platform];
       // Auto-save the reset prompt
       autoSavePrompts();
+      // Check for modified prompts
+      checkModifiedPrompts();
     }
   }
 });
+
+// Function to check if prompts are modified
+function checkModifiedPrompts() {
+  const platforms = ['linkedin', 'producthunt', 'twitter'];
+  
+  platforms.forEach(platform => {
+    const textarea = document.getElementById(platform + '-prompt');
+    const tabBtn = document.querySelector(`.tab-btn[data-tab="${platform}"]`);
+    const tabPane = document.getElementById('tab-' + platform);
+    
+    if (textarea && tabBtn && tabPane) {
+      const currentValue = textarea.value.trim();
+      const defaultValue = defaultPrompts[platform].trim();
+      
+      // Remove any existing indicator
+      const existingIndicator = tabPane.querySelector('.modified-indicator');
+      if (existingIndicator) {
+        existingIndicator.remove();
+      }
+      
+      if (currentValue !== defaultValue && currentValue !== '') {
+        // Mark tab as modified
+        tabBtn.classList.add('modified');
+        
+        // Add indicator text in the tab pane
+        const indicator = document.createElement('div');
+        indicator.className = 'modified-indicator';
+        indicator.textContent = '⚠️ Custom prompt (differs from default)';
+        tabPane.insertBefore(indicator, textarea);
+      } else {
+        // Remove modified class
+        tabBtn.classList.remove('modified');
+      }
+    }
+  });
+}
 
 // Tab functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -289,4 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('tab-' + targetTab).classList.add('active');
     });
   });
+  
+  // Check for modified prompts on load
+  checkModifiedPrompts();
 });
