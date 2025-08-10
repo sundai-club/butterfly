@@ -40,8 +40,8 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
-  // Set model picker, default to gemini-2.5-flash
-  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.5-flash';
+  // Set model picker, default to gemini-2.5-flash-lite
+  document.getElementById('model-picker').value = result.geminiModel || 'gemini-2.5-flash-lite';
   
   // Load custom prompts or use defaults
   const customPrompts = result.customPrompts || {};
@@ -110,7 +110,7 @@ async function testApiKey(key) {
   resultSpan.textContent = 'Testing...';
   
   try {
-    const model = document.getElementById('model-picker').value || 'gemini-2.5-flash';
+    const model = document.getElementById('model-picker').value || 'gemini-2.5-flash-lite';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     
     const response = await fetch(url, {

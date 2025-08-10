@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Get API key, model, custom prompts, endWithQuestion, commentLength, tone, and platform settings from storage
     chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms', 'commentTone'], (result) => {
       const apiKey = result.geminiApiKey;
-      const model = result.geminiModel || 'gemini-2.5-flash';
+      const model = result.geminiModel || 'gemini-2.5-flash-lite';
       const customPrompts = result.customPrompts || {};
       const endWithQuestion = result.endWithQuestion || false;
       const commentLength = result.commentLength !== undefined ? result.commentLength : 1; // Default to medium
@@ -135,7 +135,7 @@ function getSlopWordsInstruction() {
 let lastDebugPrompt = '';
 
 // Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, commentLength, and commentTone
-async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
+async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash-lite', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   console.log('[Butterfly] Making API call with model:', model, 'for site:', site);
@@ -216,9 +216,9 @@ ${refinement}
   
   // Add length instruction based on slider value
   const lengthInstructions = [
-    '\n\nIMPORTANT: Keep the comment very brief and concise - maximum 1-2 sentences.',
+    '\n\nVERY IMPORTANT: Keep the comment very brief and extra concise - maximum very short 1-2 sentences.',
     '', // Medium length - no additional instruction needed
-    '\n\nIMPORTANT: Write a more detailed, thoughtful comment that is at least 3-4 sentences long. Provide more context and depth.'
+    '\n\nVERY IMPORTANT: Write a more detailed, thoughtful comment that is at least 3-4 sentences long. Provide more context and depth.'
   ];
   if (commentLength !== 1) { // Only add instruction if not medium
     prompt += lengthInstructions[commentLength];
@@ -268,7 +268,7 @@ ${refinement}
 }
 
 // Generate multiple suggestions
-async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
+async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash-lite', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
   // Generate 4 variants in parallel
   const promises = [];
   for (let i = 0; i < 4; i++) {
