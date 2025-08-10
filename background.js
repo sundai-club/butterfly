@@ -55,8 +55,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Pass model, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
       fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
         .then((result) => {
-          console.log('[Butterfly] Generated suggestions:', result.suggestions);
-          if (!result.suggestions || result.suggestions.length === 0) {
+          console.log('[Butterfly] Generated result:', result);
+          if (!result || !result.suggestions || result.suggestions.length === 0) {
             console.error('[Butterfly] No suggestions generated - API returned empty');
             sendResponse({ error: 'No suggestions generated. Please check your API key.' });
           } else {
@@ -222,11 +222,6 @@ Post content: "${postText}"`;
   }
   const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   console.log('[Butterfly] Single suggestion generated:', suggestion ? 'Success' : 'Empty');
-  
-  // For debugging: return both suggestion and prompt
-  if (global.BUTTERFLY_DEBUG) {
-    return { suggestion, prompt };
-  }
   return suggestion;
 }
 
@@ -247,7 +242,7 @@ async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, a
   
   // If we don't have enough unique suggestions, try to generate more
   while (uniqueSuggestions.length < 4 && uniqueSuggestions.length > 0) {
-    const newSuggestion = await fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
+    const newSuggestion = await fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
       .catch(err => '');
     if (newSuggestion && !uniqueSuggestions.includes(newSuggestion)) {
       uniqueSuggestions.push(newSuggestion);
@@ -259,5 +254,6 @@ async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, a
     }
   }
   
+  console.log('[Butterfly] Returning suggestions object:', { suggestions: uniqueSuggestions, debugPrompt: lastDebugPrompt });
   return { suggestions: uniqueSuggestions, debugPrompt: lastDebugPrompt };
 }
