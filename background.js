@@ -108,14 +108,23 @@ async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, ap
   console.log('[Butterfly] Making API call with model:', model, 'for site:', site);
   
   // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
-  let prompt = `Post author: "${postAuthor}"
-Post content: "${postText}"`;
+  let prompt = `[POST-AUTHOR]
+${postAuthor}
+[/POST-AUTHOR]
+
+[POST-CONTENT]
+${postText}
+[/POST-CONTENT]`;
   
   if (currentComment && currentComment.trim()) {
-    prompt += `\nCurrent comment: ${currentComment}`;
+    prompt += `\n\n[CURRENT-COMMENT]
+${currentComment}
+[/CURRENT-COMMENT]`;
   }
   if (refinement && refinement.trim()) {
-    prompt += `\nRefinement instructions: ${refinement}`;
+    prompt += `\n\n[REFINEMENT-INSTRUCTIONS]
+${refinement}
+[/REFINEMENT-INSTRUCTIONS]`;
   }
 
   // Use custom prompt if available, otherwise fall back to default logic
