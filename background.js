@@ -156,14 +156,13 @@ Post content: "${postText}"`;
   const toneInstructions = {
     'none': '',
     'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
-    'professional': '\n\nIMPORTANT: Write in a formal, professional tone. Be polished and business-appropriate.',
-    'casual': '\n\nIMPORTANT: Write in a casual, relaxed tone. Be informal and conversational, like talking to a friend.',
     'enthusiastic': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
     'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
     'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
     'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
     'humorous': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
-    'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.'
+    'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.',
+    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.'
   };
   
   if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
