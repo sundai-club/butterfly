@@ -639,17 +639,11 @@ body,
 }
 
 .tab-btn.modified {
-  position: relative;
+  color: #f59e0b !important;
 }
 
-.tab-btn.modified::after {
-  content: '•';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  color: #f59e0b;
-  font-size: 1.2em;
-  line-height: 1;
+.tab-btn.modified:hover {
+  color: #f59e0b !important;
 }
 
 .tab-btn.modified.active {
