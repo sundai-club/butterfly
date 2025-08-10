@@ -161,6 +161,10 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
             console.error('[Butterfly Twitter] API error:', response.error);
             resolve({ error: response.error });
           } else if (response && response.suggestions) {
+            // Log debug prompt if available
+            if (response.debugPrompt) {
+              console.log('[Butterfly Twitter] Debug - Full prompt sent to API:\n', response.debugPrompt);
+            }
             resolve({ suggestions: response.suggestions });
           } else if (response && response.suggestion) {
             resolve({ suggestion: response.suggestion });

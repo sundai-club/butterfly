@@ -130,6 +130,10 @@ async function getGeminiSuggestionForProductHunt(postText, postAuthor, refinemen
             console.error('[Butterfly PH] API error:', response.error);
             resolve({ error: response.error });
           } else if (response && response.suggestions) {
+            // Log debug prompt if available
+            if (response.debugPrompt) {
+              console.log('[Butterfly Product Hunt] Debug - Full prompt sent to API:\n', response.debugPrompt);
+            }
             resolve({ suggestions: response.suggestions });
           } else if (response && response.suggestion) {
             resolve({ suggestion: response.suggestion });

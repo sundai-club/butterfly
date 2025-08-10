@@ -65,7 +65,7 @@ function extractPostInfo(postElement, commentBox) {
 
 // Update getGeminiSuggestion to accept both postText, postAuthor, refinement, and currentComment
 async function getGeminiSuggestion(postText, postAuthor, refinement = '', currentComment = '') {
-  console.log('Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
+  console.log('[Butterfly LinkedIn] Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
   // Send message to background for Gemini API call
   return new Promise((resolve) => {
     try {
@@ -81,6 +81,10 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
           console.error('[Butterfly] API error:', response.error);
           resolve({ error: response.error });
         } else if (response && response.suggestions) {
+          // Log debug prompt if available
+          if (response.debugPrompt) {
+            console.log('[Butterfly LinkedIn] Debug - Full prompt sent to API:\n', response.debugPrompt);
+          }
           resolve({ suggestions: response.suggestions });
         } else if (response && response.suggestion) {
           resolve({ suggestion: response.suggestion });

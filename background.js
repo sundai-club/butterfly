@@ -54,13 +54,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       // Pass model, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
       fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
-        .then((suggestions) => {
-          console.log('[Butterfly] Generated suggestions:', suggestions);
-          if (!suggestions || suggestions.length === 0) {
+        .then((result) => {
+          console.log('[Butterfly] Generated suggestions:', result.suggestions);
+          if (!result.suggestions || result.suggestions.length === 0) {
             console.error('[Butterfly] No suggestions generated - API returned empty');
             sendResponse({ error: 'No suggestions generated. Please check your API key.' });
           } else {
-            sendResponse({ suggestions });
+            sendResponse({ suggestions: result.suggestions, debugPrompt: result.debugPrompt });
           }
         })
         .catch((e) => {
@@ -97,6 +97,9 @@ function getSlopWordsInstruction() {
   
   return `\n\nIMPORTANT: Avoid using overused or clichéd words and phrases. Specifically avoid words like: ${sampleWords}. Also avoid phrases like: ${sampleBigrams}. And avoid patterns like: ${sampleTrigrams}. Write in a natural, authentic voice without these overused AI-writing patterns.`;
 }
+
+// Wrapper to capture debug info
+let lastDebugPrompt = '';
 
 // Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, commentLength, and commentTone
 async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
@@ -186,6 +189,7 @@ Post content: "${postText}"`;
   
   // Log the full prompt for debugging
   console.log('[Butterfly] Executing prompt:', prompt);
+  lastDebugPrompt = prompt; // Store for debugging
   
   const body = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }]
@@ -218,6 +222,11 @@ Post content: "${postText}"`;
   }
   const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   console.log('[Butterfly] Single suggestion generated:', suggestion ? 'Success' : 'Empty');
+  
+  // For debugging: return both suggestion and prompt
+  if (global.BUTTERFLY_DEBUG) {
+    return { suggestion, prompt };
+  }
   return suggestion;
 }
 
@@ -250,5 +259,5 @@ async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, a
     }
   }
   
-  return uniqueSuggestions;
+  return { suggestions: uniqueSuggestions, debugPrompt: lastDebugPrompt };
 }
