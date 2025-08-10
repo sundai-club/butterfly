@@ -13,9 +13,21 @@ async function loadSlopLists() {
       fetch(chrome.runtime.getURL('slop_list_trigrams.json'))
     ]);
     
-    slopWords = (await wordsResponse.json()).flat();
-    slopBigrams = (await bigramsResponse.json()).map(bigram => bigram.join(' '));
-    slopTrigrams = (await trigramsResponse.json()).map(trigram => trigram.join(' '));
+    // Each item in slop_list.json is an array with a single word, so we need to flatten twice
+    const wordsData = await wordsResponse.json();
+    slopWords = wordsData.map(arr => arr[0]); // Extract the first element from each sub-array
+    
+    const bigramsData = await bigramsResponse.json();
+    slopBigrams = bigramsData.map(bigram => bigram.join(' '));
+    
+    const trigramsData = await trigramsResponse.json();
+    slopTrigrams = trigramsData.map(trigram => trigram.join(' '));
+    
+    console.log('[Butterfly] Loaded slop lists:', {
+      words: slopWords.length,
+      bigrams: slopBigrams.length,
+      trigrams: slopTrigrams.length
+    });
   } catch (error) {
     console.error('Failed to load slop lists:', error);
   }
@@ -87,8 +99,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Generate instruction to avoid slop words
 function getSlopWordsInstruction() {
   if (slopWords.length === 0 && slopBigrams.length === 0 && slopTrigrams.length === 0) {
+    console.log('[Butterfly] Slop lists not loaded yet');
     return ''; // Return empty if lists haven't loaded yet
   }
+  
+  console.log('[Butterfly] Adding slop words instruction with:', {
+    words: slopWords.length,
+    bigrams: slopBigrams.length,
+    trigrams: slopTrigrams.length
+  });
   
   // Include ALL words/phrases in the prompt
   const allWords = slopWords.join(', ');

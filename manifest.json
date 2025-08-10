@@ -58,5 +58,15 @@
   },
   "icons": {
     "128": "icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "slop_list.json",
+        "slop_list_bigrams.json",
+        "slop_list_trigrams.json"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
