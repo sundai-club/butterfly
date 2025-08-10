@@ -126,7 +126,10 @@ async function getGeminiSuggestionForProductHunt(postText, postAuthor, refinemen
             return;
           }
           // Handle both single suggestion (backward compatibility) and multiple suggestions
-          if (response && response.suggestions) {
+          if (response && response.error) {
+            console.error('[Butterfly PH] API error:', response.error);
+            resolve({ error: response.error });
+          } else if (response && response.suggestions) {
             resolve({ suggestions: response.suggestions });
           } else if (response && response.suggestion) {
             resolve({ suggestion: response.suggestion });
@@ -161,7 +164,9 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
     const { postText, postAuthor } = extractProductInfo(postElement);
     const result = await getGeminiSuggestionForProductHunt(postText, postAuthor);
 
-    if (result.suggestions && result.suggestions.length > 0) {
+    if (result.error) {
+      console.error('[Butterfly PH] Auto-suggestion error:', result.error);
+    } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly PH] Auto-suggestion applied.');
       addInteractionButtons(commentBox, postElement, suggestBtn, result.suggestions);

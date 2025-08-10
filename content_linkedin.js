@@ -77,7 +77,10 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
           return;
         }
         // Handle both single suggestion (backward compatibility) and multiple suggestions
-        if (response && response.suggestions) {
+        if (response && response.error) {
+          console.error('[Butterfly] API error:', response.error);
+          resolve({ error: response.error });
+        } else if (response && response.suggestions) {
           resolve({ suggestions: response.suggestions });
         } else if (response && response.suggestion) {
           resolve({ suggestion: response.suggestion });
@@ -233,7 +236,9 @@ const butterflyLastFillTime = new WeakMap();
       const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       
-      if (result.suggestions && result.suggestions.length > 0) {
+      if (result.error) {
+        console.error('[Butterfly] Auto-suggestion error:', result.error);
+      } else if (result.suggestions && result.suggestions.length > 0) {
         // Use the first suggestion as the default
         setCommentBoxValue(box, result.suggestions[0]);
         console.log('[Butterfly] Auto-suggestion applied.');

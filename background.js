@@ -54,11 +54,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Pass model, customPrompts, endWithQuestion, and commentLength to fetchGeminiSuggestion
       fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
         .then((suggestions) => {
-          sendResponse({ suggestions });
+          console.log('[Butterfly] Generated suggestions:', suggestions);
+          if (!suggestions || suggestions.length === 0) {
+            console.error('[Butterfly] No suggestions generated - API returned empty');
+            sendResponse({ error: 'No suggestions generated. Please check your API key.' });
+          } else {
+            sendResponse({ suggestions });
+          }
         })
         .catch((e) => {
           console.error('Gemini API error:', e);
-          sendResponse({ suggestion: 'Gemini API error: ' + (e && e.message ? e.message : e) });
+          sendResponse({ error: 'Gemini API error: ' + (e && e.message ? e.message : e) });
         });
     });
     return true; // Keep message channel open for async
@@ -82,6 +88,8 @@ function getSlopWordsInstruction() {
 // Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, and commentLength
 async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  
+  console.log('[Butterfly] Making API call with model:', model, 'for site:', site);
   
   // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
   let prompt = `Post author: "${postAuthor}"
@@ -158,12 +166,16 @@ Post content: "${postText}"`;
   try {
     data = await res.json();
   } catch (e) {
+    console.error('[Butterfly] Failed to parse API response:', e);
     throw new Error('Could not parse Gemini API response');
   }
   if (!res.ok) {
+    console.error('[Butterfly] API error response:', data);
     throw new Error((data && data.error && data.error.message) ? data.error.message : 'HTTP ' + res.status);
   }
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('[Butterfly] Single suggestion generated:', suggestion ? 'Success' : 'Empty');
+  return suggestion;
 }
 
 // Generate multiple suggestions
