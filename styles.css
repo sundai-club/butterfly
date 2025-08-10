@@ -202,6 +202,31 @@ body,
   gap: 6px;
 }
 
+.settings-section h3 {
+  font-size: 0.95em;
+  margin: 8px 0 6px 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Model Picker Row */
+.model-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-picker-row label {
+  margin: 0;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.model-picker-row select {
+  flex: 1;
+  margin: 0;
+}
+
 /* Platform Settings Section */
 .platform-settings-section {
   margin-top: 8px;
@@ -259,25 +284,36 @@ body,
 
 .api-key-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 6px;
 }
 
 .api-key-row label {
-  margin-bottom: 0;
+  margin: 0;
+  flex-shrink: 0;
+  padding-top: 6px;
+  min-width: 60px;
 }
 
-.api-key-row input {
-  margin-bottom: 0;
+.api-key-input-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.api-key-input-wrapper input {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .api-key-status {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: 0;
-  margin-top: 2px;
+  margin-top: 4px;
+  min-height: 20px;
 }
 
 #api-key-preview {
@@ -500,8 +536,28 @@ body,
   text-decoration: underline;
 }
 
-.issues-link {
-  margin-left: 12px;
+.footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.85em;
+}
+
+.footer-links .separator {
+  color: var(--text-muted);
+}
+
+.sundai-link {
+  color: var(--button-bg);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.sundai-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
 /* Prompts Section */
@@ -574,7 +630,7 @@ body,
   padding: 8px;
   font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
   resize: vertical;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   box-sizing: border-box;
 }
 

@@ -135,11 +135,7 @@ async function testApiKey(key) {
     resultSpan.textContent = '✗ Network error';
   } finally {
     testBtn.disabled = false;
-    // Clear result after 5 seconds
-    setTimeout(() => {
-      resultSpan.textContent = '';
-      resultSpan.className = 'test-result';
-    }, 5000);
+    // Keep the result visible - don't clear it
   }
 }
 

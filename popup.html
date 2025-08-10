@@ -11,22 +11,27 @@
   <div class="popup-container">
     <h2>Butterfly Settings <span class="version" id="version"></span></h2>
     <div class="settings-section">
+      <h3>Google Gemini AI</h3>
       <div class="api-key-row">
-        <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">Google Gemini API Key:</a></label>
-        <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
-        <div class="api-key-status">
-          <span id="api-key-preview"></span>
-          <button id="test-api-key" class="test-btn" style="display:none;">check</button>
-          <span id="test-result" class="test-result"></span>
+        <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">API Key:</a></label>
+        <div class="api-key-input-wrapper">
+          <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
+          <div class="api-key-status">
+            <span id="api-key-preview"></span>
+            <button id="test-api-key" class="test-btn" style="display:none;">check</button>
+            <span id="test-result" class="test-result"></span>
+          </div>
         </div>
       </div>
       
-      <label for="model-picker">Model:</label>
-      <select id="model-picker">
-        <option value="gemini-2.5-flash">gemini-2.5-flash (default)</option>
-        <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-      </select>
+      <div class="model-picker-row">
+        <label for="model-picker">Model:</label>
+        <select id="model-picker">
+          <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash (default)</option>
+          <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+        </select>
+      </div>
     </div>
     
     <!-- Platform Settings Section -->
@@ -39,12 +44,12 @@
           <label for="platform-linkedin">LinkedIn</label>
         </div>
         <div class="platform-checkbox">
-          <input type="checkbox" id="platform-twitter">
-          <label for="platform-twitter">Twitter/X</label>
-        </div>
-        <div class="platform-checkbox">
           <input type="checkbox" id="platform-producthunt" checked>
           <label for="platform-producthunt">Product Hunt</label>
+        </div>
+        <div class="platform-checkbox">
+          <input type="checkbox" id="platform-twitter">
+          <label for="platform-twitter">Twitter/X (experimental)</label>
         </div>
       </div>
     </div>
@@ -105,11 +110,19 @@
          class="webstore-link">
         View in Chrome Web Store
       </a>
-      <a href="https://github.com/sundai-club/butterfly/issues" 
-         target="_blank" 
-         class="issues-link">
-        Report Issues
-      </a>
+      <div class="footer-links">
+        <a href="https://github.com/sundai-club/butterfly/issues" 
+           target="_blank" 
+           class="issues-link">
+          Report Issues
+        </a>
+        <span class="separator">•</span>
+        <a href="https://sundai.club" 
+           target="_blank" 
+           class="sundai-link">
+          Built at MIT Sundai Club
+        </a>
+      </div>
     </div>
     
     <script src="popup.js"></script>
