@@ -60,74 +60,18 @@ function setCommentBoxValue(commentBox, value) {
     // Focus first to activate the field
     commentBox.focus();
     
-    // Store the value in a data attribute for verification
-    commentBox.dataset.butterflyValue = value;
+    // Clear existing content
+    commentBox.textContent = '';
     
-    // Clear existing content and set new value
-    commentBox.textContent = value;
+    // Try using execCommand which sometimes works better with contenteditable
+    document.execCommand('insertText', false, value);
     
-    // Function to hide placeholder elements
-    const hidePlaceholders = () => {
-      // Find the editor wrapper that contains both the contenteditable and placeholder
-      const editorWrapper = commentBox.closest('[data-testid="tweetTextarea_0_label"]') || 
-                           commentBox.parentElement?.parentElement;
-      
-      if (editorWrapper) {
-        // Look for placeholder elements in the entire editor wrapper
-        const placeholders = editorWrapper.querySelectorAll(
-          '[data-text="true"], ' +
-          '.public-DraftEditorPlaceholder-root, ' +
-          '[class*="placeholder"], ' +
-          'div[style*="color: rgb(83, 100, 113)"], ' +
-          'span[style*="color: rgb(83, 100, 113)"]'
-        );
-        
-        placeholders.forEach(el => {
-          el.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-        });
-        
-        // Also check for any element that contains placeholder text
-        const allElements = editorWrapper.querySelectorAll('div, span');
-        allElements.forEach(el => {
-          const text = el.textContent || '';
-          if (el !== commentBox && !commentBox.contains(el) && 
-              (text.includes('Post your reply') || 
-               text.includes('Add another reply') || 
-               text.includes('Replying to') ||
-               text === 'Type your reply')) {
-            el.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-          }
-        });
-      }
-    };
-    
-    // Hide placeholders immediately
-    hidePlaceholders();
-    
-    // Set up a MutationObserver to continuously hide placeholders
-    // Twitter might re-render them
-    const observer = new MutationObserver(() => {
-      if (commentBox.textContent.trim() !== '') {
-        hidePlaceholders();
-      }
-    });
-    
-    // Observe the editor wrapper for changes
-    const editorWrapper = commentBox.closest('[data-testid="tweetTextarea_0_label"]') || 
-                         commentBox.parentElement?.parentElement;
-    if (editorWrapper) {
-      observer.observe(editorWrapper, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class']
-      });
-      
-      // Disconnect observer after 2 seconds to avoid performance issues
-      setTimeout(() => observer.disconnect(), 2000);
+    // If that didn't work, set textContent directly
+    if (!commentBox.textContent || commentBox.textContent.trim() === '') {
+      commentBox.textContent = value;
     }
     
-    // Trigger various events to ensure Twitter recognizes the change
+    // Trigger input event to notify React
     const inputEvent = new InputEvent('input', {
       bubbles: true,
       cancelable: true,
@@ -136,35 +80,29 @@ function setCommentBoxValue(commentBox, value) {
     });
     commentBox.dispatchEvent(inputEvent);
     
-    // Also dispatch beforeinput event
-    const beforeInputEvent = new InputEvent('beforeinput', {
-      bubbles: true,
-      cancelable: true,
-      inputType: 'insertText',
-      data: value
-    });
-    commentBox.dispatchEvent(beforeInputEvent);
-    
     // Set cursor position at the end
     const selection = window.getSelection();
     const range = document.createRange();
-    range.selectNodeContents(commentBox);
-    range.collapse(false);
+    
+    if (commentBox.childNodes.length > 0) {
+      const lastNode = commentBox.childNodes[commentBox.childNodes.length - 1];
+      if (lastNode.nodeType === Node.TEXT_NODE) {
+        range.setStart(lastNode, lastNode.length);
+        range.setEnd(lastNode, lastNode.length);
+      } else {
+        range.selectNodeContents(commentBox);
+        range.collapse(false);
+      }
+    } else {
+      range.selectNodeContents(commentBox);
+      range.collapse(false);
+    }
+    
     selection.removeAllRanges();
     selection.addRange(range);
     
-    // Dispatch change and blur/focus to trigger React updates
+    // Dispatch change event
     commentBox.dispatchEvent(new Event('change', { bubbles: true }));
-    commentBox.blur();
-    setTimeout(() => {
-      commentBox.focus();
-      hidePlaceholders(); // Hide again after focus
-    }, 10);
-    
-    // Final aggressive hiding after a short delay
-    setTimeout(hidePlaceholders, 50);
-    setTimeout(hidePlaceholders, 100);
-    setTimeout(hidePlaceholders, 200);
   } else {
     commentBox.value = value;
     commentBox.focus();
@@ -301,7 +239,7 @@ function addVariantsDropdown(commentBox, suggestions, currentIndex = 0) {
   // Create dropdown menu
   const dropdown = document.createElement('div');
   dropdown.className = 'butterfly-variants-dropdown';
-  dropdown.style.cssText = 'display: none; position: fixed; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; z-index: 10000; max-height: 300px; overflow-y: auto;';
+  dropdown.style.cssText = 'display: none; position: fixed; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; z-index: 2147483647; max-height: 300px; overflow-y: auto;';
   
   // Add each variant to dropdown
   suggestions.forEach((suggestion, index) => {
@@ -360,22 +298,24 @@ function addVariantsDropdown(commentBox, suggestions, currentIndex = 0) {
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       
-      // Vertical positioning: show below button if space, otherwise above
+      // Vertical positioning: prefer above button to avoid overlapping with reply field
       const spaceBelow = viewportHeight - btnRect.bottom;
       const spaceAbove = btnRect.top;
       
-      if (spaceBelow >= dropdownHeight + 10) {
-        // Show below button
+      if (spaceAbove >= dropdownHeight + 10) {
+        // Show above button (preferred to avoid reply field overlap)
+        dropdown.style.bottom = (viewportHeight - btnRect.top + 8) + 'px';
+        dropdown.style.top = 'auto';
+      } else if (spaceBelow >= dropdownHeight + 10) {
+        // Show below button only if not enough space above
         dropdown.style.top = (btnRect.bottom + 4) + 'px';
         dropdown.style.bottom = 'auto';
-      } else if (spaceAbove >= dropdownHeight + 10) {
-        // Show above button
-        dropdown.style.bottom = (viewportHeight - btnRect.top + 4) + 'px';
-        dropdown.style.top = 'auto';
       } else {
-        // Not enough space either way, show below and let it scroll
-        dropdown.style.top = Math.min(btnRect.bottom + 4, viewportHeight - dropdownHeight - 10) + 'px';
-        dropdown.style.bottom = 'auto';
+        // Not enough space either way, show above with scrolling
+        const availableHeight = Math.min(dropdownHeight, spaceAbove - 20);
+        dropdown.style.maxHeight = availableHeight + 'px';
+        dropdown.style.bottom = (viewportHeight - btnRect.top + 8) + 'px';
+        dropdown.style.top = 'auto';
       }
       
       // Horizontal positioning: align with button but keep in viewport
