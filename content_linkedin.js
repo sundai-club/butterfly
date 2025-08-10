@@ -229,6 +229,9 @@ const butterflyLastFillTime = new WeakMap();
       const displayText = suggestion.length > 100 ? suggestion.substring(0, 100) + '...' : suggestion;
       option.textContent = `${index + 1}. ${displayText}`;
       
+      // Add full comment as title attribute for hover tooltip
+      option.title = suggestion;
+      
       option.onmouseover = () => {
         if (index !== currentIndex) {
           option.style.backgroundColor = '#f8f9fa';
