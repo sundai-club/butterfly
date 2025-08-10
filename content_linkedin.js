@@ -13,26 +13,25 @@ function isExtensionContextValid() {
 function extractPostInfo(postElement, commentBox) {
   // Check if this is a reply to a comment
   if (commentBox) {
-    // Try to find the parent comment container
-    const parentComment = commentBox.closest('.comments-comment-item') || 
-                          commentBox.closest('.comments-post-meta__profile-info-wrapper')?.closest('.comments-comment-item');
-    
-    if (parentComment) {
-      // Extract parent comment text
-      const commentTextElem = parentComment.querySelector('.comments-comment-item__main-content') ||
-                              parentComment.querySelector('.comments-comment-texteditor') ||
-                              parentComment.querySelector('[data-test-app-aware-link]');
+    // Check if this is a reply box
+    const replyBox = commentBox.closest('.comments-comment-box--reply');
+    if (replyBox) {
+      // Find the parent comment article that contains this reply box
+      const parentArticle = replyBox.closest('article.comments-comment-entity');
       
-      // Extract parent comment author
-      const commentAuthorElem = parentComment.querySelector('.comments-post-meta__name-text') ||
-                                parentComment.querySelector('.comments-post-meta__profile-name') ||
-                                parentComment.querySelector('.comments-post-meta__headline');
-      
-      if (commentTextElem || commentAuthorElem) {
-        const postText = commentTextElem ? commentTextElem.innerText.trim() : '';
-        const postAuthor = commentAuthorElem ? commentAuthorElem.innerText.trim() : '';
-        console.log('[Butterfly] Replying to comment - Author:', postAuthor, 'Text:', postText);
-        return { postText, postAuthor };
+      if (parentArticle) {
+        // Extract parent comment text - look for the main content span
+        const commentTextElem = parentArticle.querySelector('.comments-comment-item__main-content');
+        
+        // Extract parent comment author - look in the meta description
+        const commentAuthorElem = parentArticle.querySelector('.comments-comment-meta__description-title');
+        
+        if (commentTextElem || commentAuthorElem) {
+          const postText = commentTextElem ? commentTextElem.innerText.trim() : '';
+          const postAuthor = commentAuthorElem ? commentAuthorElem.innerText.trim() : '';
+          console.log('[Butterfly] Replying to comment - Author:', postAuthor, 'Text:', postText);
+          return { postText, postAuthor };
+        }
       }
     }
   }
