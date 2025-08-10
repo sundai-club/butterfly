@@ -90,7 +90,8 @@ function extractProductInfo(contextElement) {
   // Product Hunt's structure can change, so robust selectors are key.
 
   // Try to find product name (often an H1, might have specific attributes or be within a known parent)
-  const productNameElem = contextElement.querySelector('h1[class*="title"], h1[data-test*="product-name"], header h1, main h1');
+  // Added h1[class*="text-"] to match Product Hunt's text-* classes (e.g., text-24, text-dark-gray)
+  const productNameElem = contextElement.querySelector('h1[class*="title"], h1[data-test*="product-name"], h1[class*="text-"], h1[class*="font-"], header h1, main h1');
   const productName = productNameElem ? productNameElem.innerText.trim() : 'Unknown Product';
 
   // Try to find product tagline (often a P near H1 or with specific attributes)
