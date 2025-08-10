@@ -184,6 +184,9 @@ Post content: "${postText}"`;
     prompt += '\n\nIMPORTANT: End your comment with a relevant, thoughtful question to encourage further discussion.';
   }
   
+  // Log the full prompt for debugging
+  console.log('[Butterfly] Executing prompt:', prompt);
+  
   const body = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }]
   });
