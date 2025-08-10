@@ -90,12 +90,26 @@ function getSlopWordsInstruction() {
     return ''; // Return empty if lists haven't loaded yet
   }
   
-  // Sample some words/phrases to include in the prompt (to keep it concise)
-  const sampleWords = slopWords.slice(0, 30).join(', ');
-  const sampleBigrams = slopBigrams.slice(0, 10).join(', ');
-  const sampleTrigrams = slopTrigrams.slice(0, 10).join(', ');
+  // Include ALL words/phrases in the prompt
+  const allWords = slopWords.join(', ');
+  const allBigrams = slopBigrams.join(', ');
+  const allTrigrams = slopTrigrams.join(', ');
   
-  return `\n\nIMPORTANT: Avoid using overused or clichéd words and phrases. Specifically avoid words like: ${sampleWords}. Also avoid phrases like: ${sampleBigrams}. And avoid patterns like: ${sampleTrigrams}. Write in a natural, authentic voice without these overused AI-writing patterns.`;
+  let instruction = '\n\nIMPORTANT: Avoid using ANY of these overused or clichéd words and phrases. Write in a natural, authentic voice without these AI-writing patterns.';
+  
+  if (slopWords.length > 0) {
+    instruction += `\n\nForbidden single words: ${allWords}`;
+  }
+  
+  if (slopBigrams.length > 0) {
+    instruction += `\n\nForbidden two-word phrases: ${allBigrams}`;
+  }
+  
+  if (slopTrigrams.length > 0) {
+    instruction += `\n\nForbidden three-word phrases: ${allTrigrams}`;
+  }
+  
+  return instruction;
 }
 
 // Wrapper to capture debug info
