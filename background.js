@@ -27,13 +27,14 @@ loadSlopLists();
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GEMINI_SUGGEST') {
     const { site, postText, postAuthor, refinement, currentComment } = message; // Added site
-    // Get API key, model, custom prompts, endWithQuestion, commentLength, and platform settings from storage
-    chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms'], (result) => {
+    // Get API key, model, custom prompts, endWithQuestion, commentLength, tone, and platform settings from storage
+    chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms', 'commentTone'], (result) => {
       const apiKey = result.geminiApiKey;
       const model = result.geminiModel || 'gemini-2.5-flash';
       const customPrompts = result.customPrompts || {};
       const endWithQuestion = result.endWithQuestion || false;
       const commentLength = result.commentLength !== undefined ? result.commentLength : 1; // Default to medium
+      const commentTone = result.commentTone || 'none';
       
       // Check if platform is enabled
       const enabledPlatforms = result.enabledPlatforms || {
@@ -51,8 +52,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ suggestion: 'Set Gemini API key in extension settings.' });
         return;
       }
-      // Pass model, customPrompts, endWithQuestion, and commentLength to fetchGeminiSuggestion
-      fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
+      // Pass model, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
+      fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
         .then((suggestions) => {
           console.log('[Butterfly] Generated suggestions:', suggestions);
           if (!suggestions || suggestions.length === 0) {
@@ -85,8 +86,8 @@ function getSlopWordsInstruction() {
   return `\n\nIMPORTANT: Avoid using overused or clichéd words and phrases. Specifically avoid words like: ${sampleWords}. Also avoid phrases like: ${sampleBigrams}. And avoid patterns like: ${sampleTrigrams}. Write in a natural, authentic voice without these overused AI-writing patterns.`;
 }
 
-// Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, and commentLength
-async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1) {
+// Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, commentLength, and commentTone
+async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   console.log('[Butterfly] Making API call with model:', model, 'for site:', site);
@@ -139,6 +140,24 @@ Post content: "${postText}"`;
   // Add slop words avoidance instruction
   prompt += getSlopWordsInstruction();
   
+  // Add tone instruction based on selector value
+  const toneInstructions = {
+    'none': '',
+    'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
+    'professional': '\n\nIMPORTANT: Write in a formal, professional tone. Be polished and business-appropriate.',
+    'casual': '\n\nIMPORTANT: Write in a casual, relaxed tone. Be informal and conversational, like talking to a friend.',
+    'enthusiastic': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
+    'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
+    'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
+    'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
+    'humorous': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
+    'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.'
+  };
+  
+  if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
+    prompt += toneInstructions[commentTone];
+  }
+  
   // Add length instruction based on slider value
   const lengthInstructions = [
     '\n\nIMPORTANT: Keep the comment very brief and concise - maximum 1-2 sentences.',
@@ -179,12 +198,12 @@ Post content: "${postText}"`;
 }
 
 // Generate multiple suggestions
-async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1) {
+async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
   // Generate 4 variants in parallel
   const promises = [];
   for (let i = 0; i < 4; i++) {
     promises.push(
-      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
+      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
         .catch(err => '') // If one fails, return empty string
     );
   }

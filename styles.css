@@ -377,6 +377,39 @@ body,
   margin-top: 12px;
 }
 
+.tone-selector-container {
+  margin-top: 15px;
+}
+
+.tone-selector-container label {
+  font-size: 0.9em;
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.tone-selector-container select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.tone-selector-container select:hover {
+  border-color: #6a5acd;
+}
+
+.tone-selector-container select:focus {
+  outline: none;
+  border-color: #6a5acd;
+  box-shadow: 0 0 0 2px rgba(106, 90, 205, 0.1);
+}
+
 .question-toggle input[type="checkbox"] {
   width: auto;
   margin: 0;

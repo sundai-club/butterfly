@@ -35,7 +35,7 @@ const defaultPrompts = {
 };
 
 // Load existing key, model, custom prompts, and platform settings
-chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms'], (result) => {
+chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms', 'commentTone'], (result) => {
   if (result.geminiApiKey) {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
@@ -54,6 +54,9 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
   
   // Set comment length slider, default to 1 (medium)
   document.getElementById('length-slider').value = result.commentLength !== undefined ? result.commentLength : 1;
+  
+  // Set comment tone selector, default to 'none'
+  document.getElementById('tone-selector').value = result.commentTone || 'none';
   
   // Load platform settings with defaults (LinkedIn and Product Hunt on, Twitter off)
   const enabledPlatforms = result.enabledPlatforms || {
@@ -233,6 +236,11 @@ document.getElementById('end-with-question').addEventListener('change', function
 // Auto-save comment length slider
 document.getElementById('length-slider').addEventListener('input', function() {
   chrome.storage.sync.set({ commentLength: parseInt(this.value) });
+});
+
+// Auto-save comment tone selector
+document.getElementById('tone-selector').addEventListener('change', function() {
+  chrome.storage.sync.set({ commentTone: this.value });
 });
 
 // Auto-save platform settings
