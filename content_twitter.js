@@ -57,36 +57,114 @@ function isExtensionContextValid() {
 
 function setCommentBoxValue(commentBox, value) {
   if (commentBox.isContentEditable) {
-    commentBox.innerHTML = '';
-    const textNode = document.createTextNode(value);
-    commentBox.appendChild(textNode);
-    
-    // Focus first to ensure the element is ready for cursor positioning
+    // Focus first to activate the field
     commentBox.focus();
     
-    try {
-      const sel = window.getSelection();
-      if (sel.rangeCount > 0) sel.removeAllRanges();
+    // Clear existing content
+    commentBox.textContent = '';
+    
+    // Try using execCommand which sometimes works better with contenteditable
+    document.execCommand('insertText', false, value);
+    
+    // If that didn't work, set textContent directly
+    if (!commentBox.textContent || commentBox.textContent.trim() === '') {
+      commentBox.textContent = value;
+    }
+    
+    // Find and hide the placeholder element directly
+    // Twitter uses a placeholder span that overlays the contenteditable
+    const placeholderElement = commentBox.parentElement?.querySelector('[data-text="true"]') ||
+                               commentBox.parentElement?.querySelector('.public-DraftEditorPlaceholder-root') ||
+                               commentBox.parentElement?.querySelector('[class*="placeholder"]') ||
+                               commentBox.parentElement?.querySelector('span[style*="color: rgb(83, 100, 113)"]');
+    
+    if (placeholderElement) {
+      placeholderElement.style.display = 'none';
+      placeholderElement.style.visibility = 'hidden';
+    }
+    
+    // Also check for any element with opacity that might be the placeholder
+    const allSpans = commentBox.parentElement?.querySelectorAll('span');
+    allSpans?.forEach(span => {
+      // Check if this span looks like a placeholder (has translucent text color)
+      const computedStyle = window.getComputedStyle(span);
+      const opacity = parseFloat(computedStyle.opacity);
+      const color = computedStyle.color;
       
-      // Only proceed if the element is in the document and has content
-      if (commentBox.isConnected && commentBox.firstChild && commentBox.firstChild.textContent) {
-        const range = document.createRange();
-        range.setStart(commentBox.firstChild, commentBox.firstChild.textContent.length);
-        range.collapse(true);
-        sel.addRange(range);
+      // Twitter placeholders often have specific styling
+      if ((opacity < 1 && opacity > 0) || 
+          color.includes('rgb(83, 100, 113)') || 
+          span.textContent?.includes('Replying to') ||
+          span.textContent?.includes('Post your reply') ||
+          span.textContent?.includes('Add another reply')) {
+        span.style.display = 'none';
       }
-    } catch (e) {
-      console.warn('[Butterfly Twitter] Failed to set cursor position:', e);
-      // Fallback: just ensure focus is maintained
-      commentBox.focus();
+    });
+    
+    // Trigger input event to notify React
+    const inputEvent = new InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: value
+    });
+    commentBox.dispatchEvent(inputEvent);
+    
+    // Set cursor position at the end
+    const selection = window.getSelection();
+    const range = document.createRange();
+    
+    if (commentBox.childNodes.length > 0) {
+      const lastNode = commentBox.childNodes[commentBox.childNodes.length - 1];
+      if (lastNode.nodeType === Node.TEXT_NODE) {
+        range.setStart(lastNode, lastNode.length);
+        range.setEnd(lastNode, lastNode.length);
+      } else {
+        range.selectNodeContents(commentBox);
+        range.collapse(false);
+      }
+    } else {
+      range.selectNodeContents(commentBox);
+      range.collapse(false);
+    }
+    
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    // Dispatch change event
+    commentBox.dispatchEvent(new Event('change', { bubbles: true }));
+    
+    // Try one more thing: simulate actual typing with a small delay
+    if (commentBox.textContent.trim() === '') {
+      setTimeout(() => {
+        for (let i = 0; i < value.length; i++) {
+          const char = value[i];
+          const keyEvent = new KeyboardEvent('keydown', {
+            key: char,
+            code: 'Key' + char.toUpperCase(),
+            bubbles: true,
+            cancelable: true
+          });
+          commentBox.dispatchEvent(keyEvent);
+          
+          document.execCommand('insertText', false, char);
+          
+          const keyUpEvent = new KeyboardEvent('keyup', {
+            key: char,
+            code: 'Key' + char.toUpperCase(),
+            bubbles: true,
+            cancelable: true
+          });
+          commentBox.dispatchEvent(keyUpEvent);
+        }
+      }, 10);
     }
   } else {
     commentBox.value = value;
     commentBox.focus();
+    commentBox.dispatchEvent(new Event('input', { bubbles: true }));
+    commentBox.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  
-  commentBox.dispatchEvent(new Event('input', { bubbles: true }));
-  commentBox.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function extractTweetInfo(tweetElement) {
