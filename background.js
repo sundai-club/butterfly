@@ -49,7 +49,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       
       if (!apiKey) {
-        sendResponse({ suggestion: 'Set Gemini API key in extension settings.' });
+        sendResponse({ error: 'No API key found. Please set your Gemini API key in extension settings.' });
         return;
       }
       // Pass model, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
@@ -65,7 +65,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })
         .catch((e) => {
           console.error('Gemini API error:', e);
-          sendResponse({ error: 'Gemini API error: ' + (e && e.message ? e.message : e) });
+          let errorMessage = 'Failed to generate comment';
+          if (e && e.message) {
+            errorMessage = e.message;
+            // Check for common API key issues
+            if (e.message.includes('API_KEY_INVALID') || e.message.includes('403')) {
+              errorMessage = 'Invalid API key. Please check your Gemini API key in extension settings.';
+            } else if (e.message.includes('QUOTA_EXCEEDED') || e.message.includes('429')) {
+              errorMessage = 'API quota exceeded. Please try again later.';
+            } else if (e.message.includes('400')) {
+              errorMessage = 'Invalid request. Please try a different model or check your settings.';
+            }
+          }
+          sendResponse({ error: errorMessage });
         });
     });
     return true; // Keep message channel open for async
@@ -189,8 +201,18 @@ Post content: "${postText}"`;
     throw new Error('Could not parse Gemini API response');
   }
   if (!res.ok) {
-    console.error('[Butterfly] API error response:', data);
-    throw new Error((data && data.error && data.error.message) ? data.error.message : 'HTTP ' + res.status);
+    console.error('[Butterfly] API error response:', JSON.stringify(data, null, 2));
+    let errorMessage = 'HTTP ' + res.status;
+    if (data && data.error) {
+      if (typeof data.error === 'string') {
+        errorMessage = data.error;
+      } else if (data.error.message) {
+        errorMessage = data.error.message;
+      } else if (data.error.code) {
+        errorMessage = `Error code: ${data.error.code}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
   const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   console.log('[Butterfly] Single suggestion generated:', suggestion ? 'Success' : 'Empty');
