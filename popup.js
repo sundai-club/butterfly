@@ -290,29 +290,44 @@ function checkModifiedPrompts() {
     const textarea = document.getElementById(platform + '-prompt');
     const tabBtn = document.querySelector(`.tab-btn[data-tab="${platform}"]`);
     const tabPane = document.getElementById('tab-' + platform);
+    const resetBtn = tabPane.querySelector('.reset-prompt-btn');
     
-    if (textarea && tabBtn && tabPane) {
+    if (textarea && tabBtn && tabPane && resetBtn) {
       const currentValue = textarea.value.trim();
       const defaultValue = defaultPrompts[platform].trim();
       
-      // Remove any existing indicator
-      const existingIndicator = tabPane.querySelector('.modified-indicator');
-      if (existingIndicator) {
-        existingIndicator.remove();
+      // Remove any existing indicator container
+      const existingContainer = tabPane.querySelector('.modified-indicator-container');
+      if (existingContainer) {
+        existingContainer.remove();
       }
       
       if (currentValue !== defaultValue && currentValue !== '') {
         // Mark tab as modified
         tabBtn.classList.add('modified');
         
-        // Add indicator text in the tab pane
-        const indicator = document.createElement('div');
+        // Create container for indicator and reset button
+        const container = document.createElement('div');
+        container.className = 'modified-indicator-container';
+        
+        // Add indicator text
+        const indicator = document.createElement('span');
         indicator.className = 'modified-indicator';
         indicator.textContent = '⚠️ Custom prompt (differs from default)';
-        tabPane.insertBefore(indicator, textarea);
+        container.appendChild(indicator);
+        
+        // Move reset button to the container
+        resetBtn.style.display = 'inline-block';
+        resetBtn.style.marginLeft = '10px';
+        container.appendChild(resetBtn);
+        
+        tabPane.insertBefore(container, textarea);
       } else {
         // Remove modified class
         tabBtn.classList.remove('modified');
+        // Hide reset button and put it back after textarea
+        resetBtn.style.display = 'none';
+        textarea.parentNode.insertBefore(resetBtn, textarea.nextSibling);
       }
     }
   });
