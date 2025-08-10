@@ -267,35 +267,181 @@ ${refinement}
   return suggestion;
 }
 
-// Generate multiple suggestions
+// Generate multiple suggestions in a single API call
 async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash-lite', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
-  // Generate 4 variants in parallel
-  const promises = [];
-  for (let i = 0; i < 4; i++) {
-    promises.push(
-      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
-        .catch(err => '') // If one fails, return empty string
-    );
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  
+  console.log('[Butterfly] Making single API call for 4 variants with model:', model, 'for site:', site);
+  
+  // Build the base prompt structure
+  let basePrompt = `[POST-AUTHOR]
+${postAuthor}
+[/POST-AUTHOR]
+
+[POST-CONTENT]
+${postText}
+[/POST-CONTENT]`;
+  
+  if (currentComment && currentComment.trim()) {
+    basePrompt += `\n\n[CURRENT-COMMENT]
+${currentComment}
+[/CURRENT-COMMENT]`;
+  }
+  if (refinement && refinement.trim()) {
+    basePrompt += `\n\n[REFINEMENT-INSTRUCTIONS]
+${refinement}
+[/REFINEMENT-INSTRUCTIONS]`;
+  }
+
+  // Add the main instruction
+  const customPrompt = customPrompts[site];
+  let mainInstruction = '';
+  
+  if (customPrompt && customPrompt.trim()) {
+    mainInstruction = customPrompt;
+  } else {
+    // Original platform-specific logic as fallback
+    if (site === 'producthunt') {
+      let authorReference = '';
+      if (postAuthor && postAuthor.toLowerCase() !== 'maker' && postAuthor.trim() !== '') {
+        authorReference = `The creator's name is '${postAuthor}'. You can refer to them by this name.`;
+      } else {
+        authorReference = `The creator's name was not identified; refer to them as 'the team', 'the creators', or 'the developers'. Do NOT use the word 'Maker' as a generic noun and do not invent a name.`;
+      }
+
+      if (currentComment && currentComment.trim()) {
+        mainInstruction = `Refine the current comment for this Product Hunt post based on the refinement instructions. Focus on being supportive, insightful, or asking a relevant question. ${authorReference}`;
+      } else {
+        mainInstruction = `Write comments for this Product Hunt post. Each comment should be supportive of the product and its creator(s). ${authorReference} Comments could highlight cool features, ask questions, or express excitement. If appropriate and known, mention the product name or the creator's name.`;
+      }
+    } else if (site === 'twitter') {
+      if (currentComment && currentComment.trim()) {
+        mainInstruction = `Refine the current comment for this Twitter/X post based on the refinement instructions. Keep it conversational and authentic.`;
+      } else {
+        mainInstruction = `Write comments for this Twitter/X post. Be conversational and authentic. Keep them brief and relevant to the topic.`;
+      }
+    } else { // Default to LinkedIn
+      if (currentComment && currentComment.trim()) {
+        mainInstruction = `Refine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Include author's name in the comment.`;
+      } else {
+        mainInstruction = `Write professional congratulatory comments for this LinkedIn post. Include author's name in the comments.`;
+      }
+    }
+  }
+
+  // Build the full prompt requesting 4 variants
+  let prompt = basePrompt + '\n\n' + mainInstruction;
+  prompt += '\n\nIMPORTANT: Generate exactly 4 different comment variants. Each should be unique and varied in style while following the instructions. Format your response as a numbered list:\n1. [first comment]\n2. [second comment]\n3. [third comment]\n4. [fourth comment]';
+  
+  // Add slop words avoidance
+  prompt += getSlopWordsInstruction();
+  
+  // Add tone instruction
+  const toneInstructions = {
+    'none': '',
+    'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
+    'enthusiastic': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
+    'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
+    'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
+    'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
+    'humorous': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
+    'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.',
+    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.'
+  };
+  
+  if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
+    prompt += toneInstructions[commentTone];
   }
   
-  const suggestions = await Promise.all(promises);
-  // Filter out empty suggestions and ensure uniqueness
-  const uniqueSuggestions = [...new Set(suggestions.filter(s => s && s.trim()))];
-  
-  // If we don't have enough unique suggestions, try to generate more
-  while (uniqueSuggestions.length < 4 && uniqueSuggestions.length > 0) {
-    const newSuggestion = await fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
-      .catch(err => '');
-    if (newSuggestion && !uniqueSuggestions.includes(newSuggestion)) {
-      uniqueSuggestions.push(newSuggestion);
-    }
-    // Prevent infinite loop
-    if (uniqueSuggestions.length === 1) {
-      // If we can only get one unique suggestion, duplicate it for now
-      break;
-    }
+  // Add length instruction
+  const lengthInstructions = [
+    '\n\nVERY IMPORTANT: Keep each comment very brief and extra concise - maximum very short 1-2 sentences.',
+    '', // Medium length - no additional instruction needed
+    '\n\nVERY IMPORTANT: Write more detailed, thoughtful comments that are at least 3-4 sentences long each. Provide more context and depth.'
+  ];
+  if (commentLength !== 1) {
+    prompt += lengthInstructions[commentLength];
   }
   
-  console.log('[Butterfly] Returning suggestions object:', { suggestions: uniqueSuggestions, debugPrompt: lastDebugPrompt });
-  return { suggestions: uniqueSuggestions, debugPrompt: lastDebugPrompt };
+  // Add question instruction
+  if (endWithQuestion) {
+    prompt += '\n\nIMPORTANT: End each comment with a relevant, thoughtful question to encourage further discussion.';
+  }
+  
+  // Log the full prompt for debugging
+  console.log('[Butterfly] Executing prompt for 4 variants:', prompt);
+  lastDebugPrompt = prompt;
+  
+  try {
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }]
+    });
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      console.error('[Butterfly] Failed to parse API response:', e);
+      throw new Error('Could not parse Gemini API response');
+    }
+    
+    if (!res.ok) {
+      console.error('[Butterfly] API error response:', JSON.stringify(data, null, 2));
+      let errorMessage = 'HTTP ' + res.status;
+      if (data && data.error) {
+        if (typeof data.error === 'string') {
+          errorMessage = data.error;
+        } else if (data.error.message) {
+          errorMessage = data.error.message;
+        } else if (data.error.code) {
+          errorMessage = `Error code: ${data.error.code}`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+    
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    console.log('[Butterfly] API response received, parsing variants');
+    
+    // Parse the numbered list response
+    const suggestions = [];
+    const lines = responseText.split('\n');
+    
+    for (const line of lines) {
+      // Match lines that start with a number followed by period or parenthesis
+      const match = line.match(/^\d+[\.\)]\s*(.+)/);
+      if (match && match[1]) {
+        const suggestion = match[1].trim();
+        if (suggestion && !suggestions.includes(suggestion)) {
+          suggestions.push(suggestion);
+        }
+      }
+    }
+    
+    // If we couldn't parse numbered format, try splitting by double newlines as fallback
+    if (suggestions.length === 0) {
+      const parts = responseText.split(/\n\n+/).filter(s => s.trim());
+      for (const part of parts) {
+        // Remove any numbering at the start
+        const cleaned = part.replace(/^\d+[\.\)]\s*/, '').trim();
+        if (cleaned && !suggestions.includes(cleaned)) {
+          suggestions.push(cleaned);
+        }
+      }
+    }
+    
+    console.log('[Butterfly] Parsed', suggestions.length, 'suggestions from response');
+    console.log('[Butterfly] Returning suggestions object:', { suggestions, debugPrompt: lastDebugPrompt });
+    return { suggestions, debugPrompt: lastDebugPrompt };
+    
+  } catch (error) {
+    console.error('[Butterfly] Error generating suggestions:', error);
+    throw error;
+  }
 }
