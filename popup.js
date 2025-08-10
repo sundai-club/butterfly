@@ -24,7 +24,7 @@ const defaultPrompts = {
 };
 
 // Load existing key, model, and custom prompts
-chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion'], (result) => {
+chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength'], (result) => {
   if (result.geminiApiKey) {
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
@@ -40,6 +40,9 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
   
   // Set end with question checkbox
   document.getElementById('end-with-question').checked = result.endWithQuestion || false;
+  
+  // Set comment length slider, default to 1 (medium)
+  document.getElementById('length-slider').value = result.commentLength !== undefined ? result.commentLength : 1;
 });
 
 // Key preview is now handled in the auto-save listener above
@@ -149,6 +152,11 @@ document.getElementById('twitter-prompt').addEventListener('input', autoSaveProm
 // Auto-save end with question checkbox
 document.getElementById('end-with-question').addEventListener('change', function() {
   chrome.storage.sync.set({ endWithQuestion: this.checked });
+});
+
+// Auto-save comment length slider
+document.getElementById('length-slider').addEventListener('input', function() {
+  chrome.storage.sync.set({ commentLength: parseInt(this.value) });
 });
 
 // Reset prompt functionality

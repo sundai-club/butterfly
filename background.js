@@ -27,18 +27,19 @@ loadSlopLists();
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GEMINI_SUGGEST') {
     const { site, postText, postAuthor, refinement, currentComment } = message; // Added site
-    // Get API key, model, custom prompts, and endWithQuestion from storage
-    chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion'], (result) => {
+    // Get API key, model, custom prompts, endWithQuestion, and commentLength from storage
+    chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength'], (result) => {
       const apiKey = result.geminiApiKey;
       const model = result.geminiModel || 'gemini-2.5-flash';
       const customPrompts = result.customPrompts || {};
       const endWithQuestion = result.endWithQuestion || false;
+      const commentLength = result.commentLength !== undefined ? result.commentLength : 1; // Default to medium
       if (!apiKey) {
         sendResponse({ suggestion: 'Set Gemini API key in extension settings.' });
         return;
       }
-      // Pass model, customPrompts, and endWithQuestion to fetchGeminiSuggestion
-      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion)
+      // Pass model, customPrompts, endWithQuestion, and commentLength to fetchGeminiSuggestion
+      fetchGeminiSuggestion(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength)
         .then((suggestion) => {
           sendResponse({ suggestion });
         })
@@ -65,8 +66,8 @@ function getSlopWordsInstruction() {
   return `\n\nIMPORTANT: Avoid using overused or clichéd words and phrases. Specifically avoid words like: ${sampleWords}. Also avoid phrases like: ${sampleBigrams}. And avoid patterns like: ${sampleTrigrams}. Write in a natural, authentic voice without these overused AI-writing patterns.`;
 }
 
-// Update fetchGeminiSuggestion to accept model, customPrompts, and endWithQuestion
-async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false) {
+// Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, and commentLength
+async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-2.5-flash', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
@@ -116,6 +117,16 @@ Post content: "${postText}"`;
   
   // Add slop words avoidance instruction
   prompt += getSlopWordsInstruction();
+  
+  // Add length instruction based on slider value
+  const lengthInstructions = [
+    '\n\nIMPORTANT: Keep the comment very brief and concise - maximum 1-2 sentences.',
+    '', // Medium length - no additional instruction needed
+    '\n\nIMPORTANT: Write a more detailed, thoughtful comment that is at least 3-4 sentences long. Provide more context and depth.'
+  ];
+  if (commentLength !== 1) { // Only add instruction if not medium
+    prompt += lengthInstructions[commentLength];
+  }
   
   // Add instruction to end with a question if enabled
   if (endWithQuestion) {
