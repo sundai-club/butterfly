@@ -288,7 +288,7 @@ function addVariantsDropdown(commentBox, suggestions, currentIndex = 0) {
   // Create dropdown menu
   const dropdown = document.createElement('div');
   dropdown.className = 'butterfly-variants-dropdown';
-  dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
+  dropdown.style.cssText = 'display: none; position: fixed; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; z-index: 10000; max-height: 300px; overflow-y: auto;';
   
   // Add each variant to dropdown
   suggestions.forEach((suggestion, index) => {
@@ -336,7 +336,53 @@ function addVariantsDropdown(commentBox, suggestions, currentIndex = 0) {
   variantsBtn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    
+    if (dropdown.style.display === 'none') {
+      dropdown.style.display = 'block';
+      
+      // Position dropdown using fixed positioning relative to viewport
+      const btnRect = variantsBtn.getBoundingClientRect();
+      const dropdownWidth = 350; // Approximate width
+      const dropdownHeight = Math.min(300, suggestions.length * 60); // Approximate height
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      
+      // Vertical positioning: show below button if space, otherwise above
+      const spaceBelow = viewportHeight - btnRect.bottom;
+      const spaceAbove = btnRect.top;
+      
+      if (spaceBelow >= dropdownHeight + 10) {
+        // Show below button
+        dropdown.style.top = (btnRect.bottom + 4) + 'px';
+        dropdown.style.bottom = 'auto';
+      } else if (spaceAbove >= dropdownHeight + 10) {
+        // Show above button
+        dropdown.style.bottom = (viewportHeight - btnRect.top + 4) + 'px';
+        dropdown.style.top = 'auto';
+      } else {
+        // Not enough space either way, show below and let it scroll
+        dropdown.style.top = Math.min(btnRect.bottom + 4, viewportHeight - dropdownHeight - 10) + 'px';
+        dropdown.style.bottom = 'auto';
+      }
+      
+      // Horizontal positioning: align with button but keep in viewport
+      let leftPos = btnRect.left;
+      
+      // Check if dropdown would overflow right edge
+      if (leftPos + dropdownWidth > viewportWidth - 10) {
+        leftPos = viewportWidth - dropdownWidth - 10;
+      }
+      
+      // Check if dropdown would overflow left edge
+      if (leftPos < 10) {
+        leftPos = 10;
+      }
+      
+      dropdown.style.left = leftPos + 'px';
+      dropdown.style.right = 'auto';
+    } else {
+      dropdown.style.display = 'none';
+    }
   };
   
   // Close dropdown when clicking outside
