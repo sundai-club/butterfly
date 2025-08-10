@@ -203,6 +203,13 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
   console.log('[Butterfly Twitter] Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
   return new Promise((resolve) => {
     try {
+      // Check if chrome.runtime is available
+      if (!chrome.runtime || !chrome.runtime.sendMessage) {
+        console.error('[Butterfly Twitter] Extension context not available');
+        resolve({ error: 'Extension context not available. Please refresh the page.' });
+        return;
+      }
+      
       chrome.runtime.sendMessage(
         { type: 'GEMINI_SUGGEST', site: 'twitter', postText, postAuthor, refinement, currentComment },
         (response) => {
@@ -229,6 +236,12 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
 }
 
 async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn) {
+  // Skip auto-suggestion if extension context is not valid
+  if (!isExtensionContextValid()) {
+    console.log('[Butterfly Twitter] Extension context not valid, skipping auto-suggestion.');
+    return;
+  }
+  
   const isEmpty = (commentBox.isContentEditable && commentBox.innerText.trim() === '') ||
                  (!commentBox.isContentEditable && commentBox.value.trim() === '');
 
