@@ -1,14 +1,25 @@
 // popup.js - Auto-save Gemini API key and model
 
-// Auto-save API key with debouncing
+// Auto-save API key with debouncing and auto-test
 let apiKeyTimeout;
+let testTimeout;
 document.getElementById('api-key').addEventListener('input', function() {
   clearTimeout(apiKeyTimeout);
+  clearTimeout(testTimeout);
   const key = this.value.trim();
   showKeyPreview(key);
+  
+  // Save the key
   apiKeyTimeout = setTimeout(() => {
     chrome.storage.sync.set({ geminiApiKey: key });
   }, 500); // Debounce for 500ms
+  
+  // Auto-test the key after user stops typing
+  if (key && key.length > 10) {
+    testTimeout = setTimeout(() => {
+      testApiKey(key);
+    }, 1000); // Wait 1 second after typing stops
+  }
 });
 
 // Auto-save model selection
@@ -60,16 +71,75 @@ if (toggleBtn && apiKeyInput) {
 
 function showKeyPreview(key) {
   const preview = document.getElementById('api-key-preview');
+  const testBtn = document.getElementById('test-api-key');
   if (key && key.length > 8) {
     const first = key.slice(0, 4);
     const last = key.slice(-4);
     preview.textContent = `Current Key: ${first}...${last}`;
+    testBtn.style.display = 'inline-block';
   } else if (key) {
     preview.textContent = 'Current Key: ' + '.'.repeat(Math.min(key.length, 5));
+    testBtn.style.display = key.length > 0 ? 'inline-block' : 'none';
   } else {
     preview.textContent = '';
+    testBtn.style.display = 'none';
   }
 }
+
+// Test API key function
+async function testApiKey(key) {
+  const testBtn = document.getElementById('test-api-key');
+  const resultSpan = document.getElementById('test-result');
+  
+  // Show testing state
+  testBtn.disabled = true;
+  resultSpan.className = 'test-result testing';
+  resultSpan.textContent = 'Testing...';
+  
+  try {
+    const model = document.getElementById('model-picker').value || 'gemini-2.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Test' }] }]
+      })
+    });
+    
+    if (response.ok) {
+      resultSpan.className = 'test-result success';
+      resultSpan.textContent = '✓ Valid';
+    } else {
+      const error = await response.json();
+      resultSpan.className = 'test-result error';
+      if (response.status === 400 || response.status === 403) {
+        resultSpan.textContent = '✗ Invalid key';
+      } else {
+        resultSpan.textContent = '✗ Error';
+      }
+    }
+  } catch (err) {
+    resultSpan.className = 'test-result error';
+    resultSpan.textContent = '✗ Network error';
+  } finally {
+    testBtn.disabled = false;
+    // Clear result after 5 seconds
+    setTimeout(() => {
+      resultSpan.textContent = '';
+      resultSpan.className = 'test-result';
+    }, 5000);
+  }
+}
+
+// Manual test button click
+document.getElementById('test-api-key').addEventListener('click', function() {
+  const key = document.getElementById('api-key').value.trim();
+  if (key) {
+    testApiKey(key);
+  }
+});
 
 // Display version number
 chrome.runtime.getManifest().version && (document.getElementById('version').textContent = 'v' + chrome.runtime.getManifest().version);

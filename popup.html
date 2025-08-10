@@ -13,9 +13,13 @@
     <div class="settings-section">
       <div class="api-key-row">
         <label for="api-key"><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--text);">Google Gemini API Key:</a></label>
-        <span id="api-key-preview"></span>
+        <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
+        <div class="api-key-status">
+          <span id="api-key-preview"></span>
+          <button id="test-api-key" class="test-btn" style="display:none;">check</button>
+          <span id="test-result" class="test-result"></span>
+        </div>
       </div>
-      <input type="password" id="api-key" placeholder="Paste your Gemini API key here">
       
       <label for="model-picker">Model:</label>
       <select id="model-picker">

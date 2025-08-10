@@ -222,17 +222,72 @@ body,
 
 .api-key-row {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.api-key-row label {
+  margin-bottom: 0;
+}
+
+.api-key-row input {
+  margin-bottom: 0;
+}
+
+.api-key-status {
+  display: flex;
   align-items: center;
-  margin-bottom: 2px;
+  gap: 6px;
+  margin-left: 0;
+  margin-top: 2px;
 }
 
 #api-key-preview {
   font-size: 0.75em;
   color: var(--text-muted);
   font-style: italic;
-  flex-shrink: 0;
-  margin-left: 8px;
+}
+
+.test-btn {
+  font-size: 0.7em !important;
+  padding: 2px 6px !important;
+  background: #f0f0f0 !important;
+  color: #666 !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  width: auto !important;
+  margin: 0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.test-btn:hover {
+  background: #e0e0e0 !important;
+  color: #333 !important;
+}
+
+.test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+.test-result {
+  font-size: 0.7em;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.test-result.success {
+  color: #22c55e;
+}
+
+.test-result.error {
+  color: #ef4444;
+}
+
+.test-result.testing {
+  color: #3b82f6;
 }
 
 .popup-container input:focus,
