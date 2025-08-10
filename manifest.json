@@ -3,7 +3,7 @@
   "name": "Butterfly",
   "version": "1.5",
   "description": "AI-powered comment suggestions for LinkedIn, Twitter/X, and Product Hunt using Google Gemini.",
-  "permissions": [
+  "permissions": [just
     "storage"
   ],
   "host_permissions": [

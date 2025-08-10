@@ -60,48 +60,74 @@ function setCommentBoxValue(commentBox, value) {
     // Focus first to activate the field
     commentBox.focus();
     
-    // Clear existing content
-    commentBox.textContent = '';
+    // Store the value in a data attribute for verification
+    commentBox.dataset.butterflyValue = value;
     
-    // Try using execCommand which sometimes works better with contenteditable
-    document.execCommand('insertText', false, value);
+    // Clear existing content and set new value
+    commentBox.textContent = value;
     
-    // If that didn't work, set textContent directly
-    if (!commentBox.textContent || commentBox.textContent.trim() === '') {
-      commentBox.textContent = value;
-    }
-    
-    // Find and hide the placeholder element directly
-    // Twitter uses a placeholder span that overlays the contenteditable
-    const placeholderElement = commentBox.parentElement?.querySelector('[data-text="true"]') ||
-                               commentBox.parentElement?.querySelector('.public-DraftEditorPlaceholder-root') ||
-                               commentBox.parentElement?.querySelector('[class*="placeholder"]') ||
-                               commentBox.parentElement?.querySelector('span[style*="color: rgb(83, 100, 113)"]');
-    
-    if (placeholderElement) {
-      placeholderElement.style.display = 'none';
-      placeholderElement.style.visibility = 'hidden';
-    }
-    
-    // Also check for any element with opacity that might be the placeholder
-    const allSpans = commentBox.parentElement?.querySelectorAll('span');
-    allSpans?.forEach(span => {
-      // Check if this span looks like a placeholder (has translucent text color)
-      const computedStyle = window.getComputedStyle(span);
-      const opacity = parseFloat(computedStyle.opacity);
-      const color = computedStyle.color;
+    // Function to hide placeholder elements
+    const hidePlaceholders = () => {
+      // Find the editor wrapper that contains both the contenteditable and placeholder
+      const editorWrapper = commentBox.closest('[data-testid="tweetTextarea_0_label"]') || 
+                           commentBox.parentElement?.parentElement;
       
-      // Twitter placeholders often have specific styling
-      if ((opacity < 1 && opacity > 0) || 
-          color.includes('rgb(83, 100, 113)') || 
-          span.textContent?.includes('Replying to') ||
-          span.textContent?.includes('Post your reply') ||
-          span.textContent?.includes('Add another reply')) {
-        span.style.display = 'none';
+      if (editorWrapper) {
+        // Look for placeholder elements in the entire editor wrapper
+        const placeholders = editorWrapper.querySelectorAll(
+          '[data-text="true"], ' +
+          '.public-DraftEditorPlaceholder-root, ' +
+          '[class*="placeholder"], ' +
+          'div[style*="color: rgb(83, 100, 113)"], ' +
+          'span[style*="color: rgb(83, 100, 113)"]'
+        );
+        
+        placeholders.forEach(el => {
+          el.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        });
+        
+        // Also check for any element that contains placeholder text
+        const allElements = editorWrapper.querySelectorAll('div, span');
+        allElements.forEach(el => {
+          const text = el.textContent || '';
+          if (el !== commentBox && !commentBox.contains(el) && 
+              (text.includes('Post your reply') || 
+               text.includes('Add another reply') || 
+               text.includes('Replying to') ||
+               text === 'Type your reply')) {
+            el.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+          }
+        });
+      }
+    };
+    
+    // Hide placeholders immediately
+    hidePlaceholders();
+    
+    // Set up a MutationObserver to continuously hide placeholders
+    // Twitter might re-render them
+    const observer = new MutationObserver(() => {
+      if (commentBox.textContent.trim() !== '') {
+        hidePlaceholders();
       }
     });
     
-    // Trigger input event to notify React
+    // Observe the editor wrapper for changes
+    const editorWrapper = commentBox.closest('[data-testid="tweetTextarea_0_label"]') || 
+                         commentBox.parentElement?.parentElement;
+    if (editorWrapper) {
+      observer.observe(editorWrapper, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+      
+      // Disconnect observer after 2 seconds to avoid performance issues
+      setTimeout(() => observer.disconnect(), 2000);
+    }
+    
+    // Trigger various events to ensure Twitter recognizes the change
     const inputEvent = new InputEvent('input', {
       bubbles: true,
       cancelable: true,
@@ -110,55 +136,35 @@ function setCommentBoxValue(commentBox, value) {
     });
     commentBox.dispatchEvent(inputEvent);
     
+    // Also dispatch beforeinput event
+    const beforeInputEvent = new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: value
+    });
+    commentBox.dispatchEvent(beforeInputEvent);
+    
     // Set cursor position at the end
     const selection = window.getSelection();
     const range = document.createRange();
-    
-    if (commentBox.childNodes.length > 0) {
-      const lastNode = commentBox.childNodes[commentBox.childNodes.length - 1];
-      if (lastNode.nodeType === Node.TEXT_NODE) {
-        range.setStart(lastNode, lastNode.length);
-        range.setEnd(lastNode, lastNode.length);
-      } else {
-        range.selectNodeContents(commentBox);
-        range.collapse(false);
-      }
-    } else {
-      range.selectNodeContents(commentBox);
-      range.collapse(false);
-    }
-    
+    range.selectNodeContents(commentBox);
+    range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
     
-    // Dispatch change event
+    // Dispatch change and blur/focus to trigger React updates
     commentBox.dispatchEvent(new Event('change', { bubbles: true }));
+    commentBox.blur();
+    setTimeout(() => {
+      commentBox.focus();
+      hidePlaceholders(); // Hide again after focus
+    }, 10);
     
-    // Try one more thing: simulate actual typing with a small delay
-    if (commentBox.textContent.trim() === '') {
-      setTimeout(() => {
-        for (let i = 0; i < value.length; i++) {
-          const char = value[i];
-          const keyEvent = new KeyboardEvent('keydown', {
-            key: char,
-            code: 'Key' + char.toUpperCase(),
-            bubbles: true,
-            cancelable: true
-          });
-          commentBox.dispatchEvent(keyEvent);
-          
-          document.execCommand('insertText', false, char);
-          
-          const keyUpEvent = new KeyboardEvent('keyup', {
-            key: char,
-            code: 'Key' + char.toUpperCase(),
-            bubbles: true,
-            cancelable: true
-          });
-          commentBox.dispatchEvent(keyUpEvent);
-        }
-      }, 10);
-    }
+    // Final aggressive hiding after a short delay
+    setTimeout(hidePlaceholders, 50);
+    setTimeout(hidePlaceholders, 100);
+    setTimeout(hidePlaceholders, 200);
   } else {
     commentBox.value = value;
     commentBox.focus();
