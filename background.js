@@ -205,9 +205,14 @@ ${refinement}
     'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
     'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
     'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
-    'humorous': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
+    'funny': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
     'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.',
-    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.'
+    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.',
+    'direct': '\n\nIMPORTANT: Be direct and concise. Use short, clear sentences with strong verbs. No hedging words (maybe, perhaps, might). Get straight to the point without fluff or filler.',
+    'pushback': '\n\nIMPORTANT: Acknowledge one good point from the post, then respectfully challenge one assumption or aspect. Offer a constructive alternative or fix. Be friendly but thought-provoking.',
+    'socratic': '\n\nIMPORTANT: Ask 2-3 sharp, thought-provoking questions that dig deeper into the topic. Questions should expose hidden assumptions or unexplored angles. End with suggesting a concrete next step.',
+    'builder': '\n\nIMPORTANT: Focus on action and building. State a clear outcome or goal, list 2-3 concrete steps to achieve it, and give a specific deadline or timeframe. Be motivating and results-oriented.',
+    'challenger': '\n\nIMPORTANT: Set a high bar or ambitious challenge. Be crisp and bold. State what excellence looks like, set a specific date or metric, and inspire action. No wasted words.'
   };
   
   if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
@@ -344,9 +349,14 @@ ${refinement}
     'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
     'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
     'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
-    'humorous': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
+    'funny': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
     'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.',
-    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.'
+    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.',
+    'direct': '\n\nIMPORTANT: Be direct and concise. Use short, clear sentences with strong verbs. No hedging words (maybe, perhaps, might). Get straight to the point without fluff or filler.',
+    'pushback': '\n\nIMPORTANT: Acknowledge one good point from the post, then respectfully challenge one assumption or aspect. Offer a constructive alternative or fix. Be friendly but thought-provoking.',
+    'socratic': '\n\nIMPORTANT: Ask 2-3 sharp, thought-provoking questions that dig deeper into the topic. Questions should expose hidden assumptions or unexplored angles. End with suggesting a concrete next step.',
+    'builder': '\n\nIMPORTANT: Focus on action and building. State a clear outcome or goal, list 2-3 concrete steps to achieve it, and give a specific deadline or timeframe. Be motivating and results-oriented.',
+    'challenger': '\n\nIMPORTANT: Set a high bar or ambitious challenge. Be crisp and bold. State what excellence looks like, set a specific date or metric, and inspire action. No wasted words.'
   };
   
   if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
