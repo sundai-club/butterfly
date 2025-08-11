@@ -201,7 +201,7 @@ ${refinement}
   const toneInstructions = {
     'none': '',
     'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
-    'enthusiastic': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
+    'excited': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
     'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
     'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
     'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
@@ -221,9 +221,9 @@ ${refinement}
   
   // Add length instruction based on slider value
   const lengthInstructions = [
-    '\n\nVERY IMPORTANT: Keep the comment very brief and extra concise - maximum very short 1-2 sentences.',
+    '\n\nCRITICAL: Keep the comment very brief and concise - maximum very short 1 sentence.',
     '', // Medium length - no additional instruction needed
-    '\n\nVERY IMPORTANT: Write a more detailed, thoughtful comment that is at least 3-4 sentences long. Provide more context and depth.'
+    '\n\nCRITICAL: Write a more detailed, thoughtful comment that is at least 3-4 sentences long. Provide more context and depth.'
   ];
   if (commentLength !== 1) { // Only add instruction if not medium
     prompt += lengthInstructions[commentLength];
@@ -345,7 +345,7 @@ ${refinement}
   const toneInstructions = {
     'none': '',
     'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
-    'enthusiastic': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
+    'excited': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
     'thoughtful': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
     'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
     'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
@@ -365,7 +365,7 @@ ${refinement}
   
   // Add length instruction
   const lengthInstructions = [
-    '\n\nVERY IMPORTANT: Keep each comment very brief and extra concise - maximum very short 1-2 sentences.',
+    '\n\nVERY IMPORTANT: Keep each comment very brief and extra concise - maximum very short 1 sentence.',
     '', // Medium length - no additional instruction needed
     '\n\nVERY IMPORTANT: Write more detailed, thoughtful comments that are at least 3-4 sentences long each. Provide more context and depth.'
   ];
@@ -375,7 +375,7 @@ ${refinement}
   
   // Add question instruction
   if (endWithQuestion) {
-    prompt += '\n\nIMPORTANT: End each comment with a relevant, thoughtful question to encourage further discussion.';
+    prompt += '\n\nIMPORTANT: End each comment with a relevant, thoughtful, tone and style-appropriate question to encourage further discussion.';
   }
   
   // Log the full prompt for debugging

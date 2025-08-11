@@ -2,6 +2,42 @@
 
 console.log('[Butterfly] Product Hunt content script loaded');
 
+// Helper function to check if extension context is valid
+function isExtensionContextValid() {
+  try {
+    return chrome.runtime && chrome.runtime.id;
+  } catch (e) {
+    console.log('[Butterfly Product Hunt] Extension context invalidated - page reload required');
+    return false;
+  }
+}
+
+// Show message when context is invalidated
+function showContextInvalidatedMessage() {
+  const existingMessage = document.querySelector('.butterfly-reload-message');
+  if (existingMessage) return;
+  
+  const message = document.createElement('div');
+  message.className = 'butterfly-reload-message';
+  message.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ff6b6b;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  `;
+  message.textContent = '🦋 Butterfly extension updated. Please refresh the page to continue.';
+  document.body.appendChild(message);
+  
+  setTimeout(() => message.remove(), 10000);
+}
+
 function injectPHButtonStyles() {
   const styleId = 'butterfly-ph-styles';
   if (document.getElementById(styleId)) return;
@@ -116,12 +152,23 @@ async function getGeminiSuggestionForProductHunt(postText, postAuthor, refinemen
   console.log('[Butterfly PH] Gemini suggestion request:', { postText, postAuthor, refinement, currentComment });
   return new Promise((resolve) => {
     try {
+      // Check if extension context is valid
+      if (!isExtensionContextValid()) {
+        console.error('[Butterfly Product Hunt] Extension context is not available');
+        showContextInvalidatedMessage();
+        resolve({ error: 'Extension context lost. Please refresh the page.' });
+        return;
+      }
+      
       chrome.runtime.sendMessage(
         { type: 'GEMINI_SUGGEST', site: 'producthunt', postText, postAuthor, refinement, currentComment },
         (response) => {
           // Check for chrome.runtime.lastError which indicates extension context issues
           if (chrome.runtime.lastError) {
             console.error('[Butterfly PH] Extension context error:', chrome.runtime.lastError);
+            if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('context invalidated')) {
+              showContextInvalidatedMessage();
+            }
             resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
             return;
           }
@@ -411,8 +458,23 @@ function findCommentBoxAndPost(postElement) {
 }
 
 function scanAndInjectProductHunt() {
+  // Check if extension context is valid first
+  if (!isExtensionContextValid()) {
+    console.log('[Butterfly Product Hunt] Extension context not valid, skipping initialization');
+    return;
+  }
+  
   // Check if Product Hunt is enabled
-  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+  try {
+    chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+      // Check for chrome.runtime.lastError
+      if (chrome.runtime.lastError) {
+        console.log('[Butterfly Product Hunt] Chrome runtime error:', chrome.runtime.lastError);
+        if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('context invalidated')) {
+          showContextInvalidatedMessage();
+        }
+        return;
+      }
     const enabledPlatforms = result.enabledPlatforms || {
       linkedin: true,
       twitter: false,
@@ -458,7 +520,13 @@ function scanAndInjectProductHunt() {
         editor.dataset.butterflyPhInjected = 'true';
       }
     });
-  });
+    });
+  } catch (error) {
+    console.error('[Butterfly Product Hunt] Error accessing storage:', error);
+    if (error.message && error.message.includes('context invalidated')) {
+      showContextInvalidatedMessage();
+    }
+  }
 }
 
 // --- SPA Navigation & Robust Observer --- (Similar to content.js)

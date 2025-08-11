@@ -51,8 +51,35 @@ function isExtensionContextValid() {
   try {
     return chrome.runtime && chrome.runtime.id;
   } catch (e) {
+    console.log('[Butterfly Twitter] Extension context invalidated - page reload required');
     return false;
   }
+}
+
+// Show message when context is invalidated
+function showContextInvalidatedMessage() {
+  const existingMessage = document.querySelector('.butterfly-reload-message');
+  if (existingMessage) return;
+  
+  const message = document.createElement('div');
+  message.className = 'butterfly-reload-message';
+  message.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ff6b6b;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  `;
+  message.textContent = '🦋 Butterfly extension updated. Please refresh the page to continue.';
+  document.body.appendChild(message);
+  
+  setTimeout(() => message.remove(), 10000);
 }
 
 function setCommentBoxValue(commentBox, value) {
@@ -142,8 +169,9 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
   return new Promise((resolve) => {
     try {
       // Check if chrome.runtime is available
-      if (!chrome.runtime || !chrome.runtime.sendMessage) {
+      if (!isExtensionContextValid()) {
         console.error('[Butterfly Twitter] Extension context not available');
+        showContextInvalidatedMessage();
         resolve({ error: 'Extension context not available. Please refresh the page.' });
         return;
       }
@@ -153,6 +181,9 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
         (response) => {
           if (chrome.runtime.lastError) {
             console.error('[Butterfly Twitter] Extension context error:', chrome.runtime.lastError);
+            if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('context invalidated')) {
+              showContextInvalidatedMessage();
+            }
             resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
             return;
           }
@@ -551,8 +582,15 @@ function findTweetElement(commentBox) {
 }
 
 function scanAndInjectTwitter() {
+  // Check if extension context is valid first
+  if (!isExtensionContextValid()) {
+    console.log('[Butterfly Twitter] Extension context not valid, skipping initialization');
+    return;
+  }
+  
   // Check if Twitter/X is enabled
-  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+  try {
+    chrome.storage.sync.get(['enabledPlatforms'], (result) => {
     const enabledPlatforms = result.enabledPlatforms || {
       linkedin: true,
       twitter: false,
@@ -575,7 +613,13 @@ function scanAndInjectTwitter() {
         commentBox.dataset.butterflyTwitterInjected = 'true';
       }
     });
-  });
+    });
+  } catch (error) {
+    console.error('[Butterfly Twitter] Error accessing storage:', error);
+    if (error.message && error.message.includes('context invalidated')) {
+      showContextInvalidatedMessage();
+    }
+  }
   
   // Debug: Check if main composer is being correctly excluded
   const mainComposer = document.querySelector('[data-testid="tweetTextarea_0"]');
