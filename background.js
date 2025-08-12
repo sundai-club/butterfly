@@ -56,12 +56,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       };
       
       if (!enabledPlatforms[site]) {
-        sendResponse({ suggestion: `Butterfly is disabled for ${site}. Enable it in extension settings.` });
+        const siteName = site.charAt(0).toUpperCase() + site.slice(1);
+        sendResponse({ suggestion: `🦋 Butterfly is disabled for ${siteName}.\nTo enable:\n1. Click the Butterfly icon (🦋) in toolbar\n2. Check the box for "${siteName}"\n3. Try generating again!` });
         return;
       }
       
       if (!apiKey) {
-        sendResponse({ error: 'No API key found. Please set your Gemini API key in extension settings.' });
+        sendResponse({ error: '🦋 Welcome to Butterfly! To get started:\n1. Click the Butterfly extension icon (🦋) in your browser toolbar\n2. Get a free API key from Google AI Studio (link provided)\n3. Paste your API key in the settings\n4. Start generating AI comments!' });
         return;
       }
       // Pass model, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
@@ -82,11 +83,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             errorMessage = e.message;
             // Check for common API key issues
             if (e.message.includes('API_KEY_INVALID') || e.message.includes('403')) {
-              errorMessage = 'Invalid API key. Please check your Gemini API key in extension settings.';
+              errorMessage = '❌ Invalid API key. To fix:\n1. Click the Butterfly icon (🦋) in toolbar\n2. Check your API key is correct\n3. Get a new key from Google AI Studio if needed';
             } else if (e.message.includes('QUOTA_EXCEEDED') || e.message.includes('429')) {
-              errorMessage = 'API quota exceeded. Please try again later.';
+              errorMessage = '⏳ API quota exceeded. Your free tier limit was reached.\nTry again in a few minutes or upgrade your Google AI Studio plan.';
             } else if (e.message.includes('400')) {
-              errorMessage = 'Invalid request. Please try a different model or check your settings.';
+              errorMessage = '⚠️ Request failed. Try:\n1. Click Butterfly icon (🦋)\n2. Switch to a different model\n3. Check your settings';
             }
           }
           sendResponse({ error: errorMessage });
