@@ -316,7 +316,7 @@ function addVariantsDropdown(commentBox, suggestions, currentIndex = 0) {
   // Create dropdown menu
   const dropdown = document.createElement('div');
   dropdown.className = 'butterfly-variants-dropdown';
-  dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
+  dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; color: #24292e; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
   
   // Add each variant to dropdown
   suggestions.forEach((suggestion, index) => {
