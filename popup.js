@@ -31,6 +31,7 @@ document.getElementById('model-picker').addEventListener('change', function() {
 const defaultPrompts = {
   linkedin: "Write a single, concise, professional congratulatory comment for this LinkedIn post. Use simple, clear language. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in Russian, write in Russian. If in Spanish, write in Spanish. If in English, write in English. Match the language exactly.",
   producthunt: "Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). Use simple, clear language. The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in French, write in French. If in Russian, write in Russian. If in English, write in English. Match the language exactly.",
+  reddit: "Write a single, concise, thoughtful comment for this Reddit post or comment. Be conversational and authentic using simple, clear language. Only output the final comment — no extra text, options, or formatting. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in German, write in German. If in Spanish, write in Spanish. If in English, write in English. Match the language exactly.",
   twitter: "Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic using simple, clear language. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in Japanese, write in Japanese. If in Russian, write in Russian. If in English, write in English. Match the language exactly."
 };
 
@@ -47,6 +48,7 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
   const customPrompts = result.customPrompts || {};
   document.getElementById('linkedin-prompt').value = customPrompts.linkedin || defaultPrompts.linkedin;
   document.getElementById('producthunt-prompt').value = customPrompts.producthunt || defaultPrompts.producthunt;
+  document.getElementById('reddit-prompt').value = customPrompts.reddit || defaultPrompts.reddit;
   document.getElementById('twitter-prompt').value = customPrompts.twitter || defaultPrompts.twitter;
   
   // Set end with question checkbox
@@ -62,11 +64,13 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
   const enabledPlatforms = result.enabledPlatforms || {
     linkedin: true,
     twitter: false,
-    producthunt: true
+    producthunt: true,
+    reddit: true
   };
   document.getElementById('platform-linkedin').checked = enabledPlatforms.linkedin !== false;
   document.getElementById('platform-twitter').checked = enabledPlatforms.twitter === true;
   document.getElementById('platform-producthunt').checked = enabledPlatforms.producthunt !== false;
+  document.getElementById('platform-reddit').checked = enabledPlatforms.reddit !== false;
 });
 
 // Key preview is now handled in the auto-save listener above
@@ -217,6 +221,7 @@ function autoSavePrompts() {
     const customPrompts = {
       linkedin: document.getElementById('linkedin-prompt').value,
       producthunt: document.getElementById('producthunt-prompt').value,
+      reddit: document.getElementById('reddit-prompt').value,
       twitter: document.getElementById('twitter-prompt').value
     };
     chrome.storage.sync.set({ customPrompts });
@@ -229,6 +234,10 @@ document.getElementById('linkedin-prompt').addEventListener('input', function() 
   checkModifiedPrompts();
 });
 document.getElementById('producthunt-prompt').addEventListener('input', function() {
+  autoSavePrompts();
+  checkModifiedPrompts();
+});
+document.getElementById('reddit-prompt').addEventListener('input', function() {
   autoSavePrompts();
   checkModifiedPrompts();
 });
@@ -257,7 +266,8 @@ function savePlatformSettings() {
   const enabledPlatforms = {
     linkedin: document.getElementById('platform-linkedin').checked,
     twitter: document.getElementById('platform-twitter').checked,
-    producthunt: document.getElementById('platform-producthunt').checked
+    producthunt: document.getElementById('platform-producthunt').checked,
+    reddit: document.getElementById('platform-reddit').checked
   };
   chrome.storage.sync.set({ enabledPlatforms });
 }
@@ -266,6 +276,7 @@ function savePlatformSettings() {
 document.getElementById('platform-linkedin').addEventListener('change', savePlatformSettings);
 document.getElementById('platform-twitter').addEventListener('change', savePlatformSettings);
 document.getElementById('platform-producthunt').addEventListener('change', savePlatformSettings);
+document.getElementById('platform-reddit').addEventListener('change', savePlatformSettings);
 
 // Reset prompt functionality
 document.addEventListener('click', function(e) {
@@ -284,7 +295,7 @@ document.addEventListener('click', function(e) {
 
 // Function to check if prompts are modified
 function checkModifiedPrompts() {
-  const platforms = ['linkedin', 'producthunt', 'twitter'];
+  const platforms = ['linkedin', 'producthunt', 'reddit', 'twitter'];
   
   platforms.forEach(platform => {
     const textarea = document.getElementById(platform + '-prompt');

@@ -36,6 +36,19 @@ function showContextInvalidatedMessage() {
   setTimeout(() => message.remove(), 10000);
 }
 
+function showInlineStatus(uiContainer, message) {
+  if (!uiContainer) return;
+  const existing = uiContainer.querySelector('.butterfly-inline-status');
+  if (existing) existing.remove();
+  
+  const status = document.createElement('span');
+  status.className = 'butterfly-inline-status';
+  status.textContent = `${message}?`;
+  status.title = 'Enable LinkedIn in Butterfly settings: click the 🦋 icon, check "LinkedIn", then try again.';
+  status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
+  uiContainer.appendChild(status);
+}
+
 // New function to extract both post text and author
 function extractPostInfo(postElement, commentBox) {
   // Check if this is a reply to a comment
@@ -114,18 +127,17 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
           resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
           return;
         }
-        // Handle both single suggestion (backward compatibility) and multiple suggestions
         if (response && response.error) {
           console.error('[Butterfly] API error:', response.error);
           resolve({ error: response.error });
+        } else if (response && response.disabled) {
+          resolve({ disabled: true });
         } else if (response && response.suggestions) {
           // Log debug prompt if available
           if (response.debugPrompt) {
             console.log('[Butterfly LinkedIn] Debug - Full prompt sent to API:\n', response.debugPrompt);
           }
           resolve({ suggestions: response.suggestions });
-        } else if (response && response.suggestion) {
-          resolve({ suggestion: response.suggestion });
         } else {
           resolve({ error: 'No suggestion received' });
         }
@@ -292,16 +304,14 @@ const butterflyLastFillTime = new WeakMap();
         // Display error message directly in the comment field
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
+      } else if (result.disabled) {
+        showInlineStatus(uiContainer, 'Disabled for LinkedIn');
       } else if (result.suggestions && result.suggestions.length > 0) {
         // Use the first suggestion as the default
         setCommentBoxValue(box, result.suggestions[0]);
         console.log('[Butterfly] Auto-suggestion applied.');
         addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
         addVariantsDropdown(box, result.suggestions, 0);
-      } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
-        setCommentBoxValue(box, result.suggestion);
-        console.log('[Butterfly] Auto-suggestion applied.');
-        addInteractionButtons(box, postElement, suggestBtn);
       } else {
         console.log('[Butterfly] Auto-suggestion failed or returned empty.');
       }
@@ -457,11 +467,11 @@ const butterflyLastFillTime = new WeakMap();
         // Display error message directly in the comment field
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
+      } else if (result.disabled) {
+        showInlineStatus(uiContainer, 'Disabled for LinkedIn');
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addVariantsDropdown(box, result.suggestions, 0);
-      } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
-        setCommentBoxValue(box, result.suggestion);
       }
       
       refineBtn.disabled = false;
@@ -521,13 +531,12 @@ const butterflyLastFillTime = new WeakMap();
         // Display error message directly in the comment field
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
+      } else if (result.disabled) {
+        showInlineStatus(uiContainer, 'Disabled for LinkedIn');
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
         addVariantsDropdown(box, result.suggestions, 0);
-      } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
-        setCommentBoxValue(box, result.suggestion);
-        addInteractionButtons(box, postElement, suggestBtn);
       }
       suggestBtn.disabled = false;
       suggestBtn.textContent = originalText;

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Butterfly",
-  "version": "1.5",
-  "description": "AI-powered comment suggestions for LinkedIn, Twitter/X, and Product Hunt using Google Gemini.",
+  "version": "1.6",
+  "description": "AI-powered comment suggestions for LinkedIn, Twitter/X, Product Hunt, and Reddit using Google Gemini.",
   "permissions": [
     "storage"
   ],
@@ -11,6 +11,7 @@
     "https://www.producthunt.com/*",
     "https://twitter.com/*",
     "https://x.com/*",
+    "https://old.reddit.com/*",
     "https://generativelanguage.googleapis.com/*"
   ],
   "background": {
@@ -46,6 +47,17 @@
       ],
       "js": [
         "content_twitter.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
+    },
+    {
+      "matches": [
+        "https://old.reddit.com/*"
+      ],
+      "js": [
+        "content_reddit_old.js"
       ],
       "css": [
         "styles.css"

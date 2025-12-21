@@ -52,12 +52,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const enabledPlatforms = result.enabledPlatforms || {
         linkedin: true,
         twitter: false,
-        producthunt: true
+        producthunt: true,
+        reddit: true
       };
       
       if (!enabledPlatforms[site]) {
-        const siteName = site.charAt(0).toUpperCase() + site.slice(1);
-        sendResponse({ suggestion: `🦋 Butterfly is disabled for ${siteName}.\nTo enable:\n1. Click the Butterfly icon (🦋) in toolbar\n2. Check the box for "${siteName}"\n3. Try generating again!` });
+        sendResponse({ disabled: true });
         return;
       }
       
@@ -135,70 +135,7 @@ function getSlopWordsInstruction() {
 // Wrapper to capture debug info
 let lastDebugPrompt = '';
 
-// Update fetchGeminiSuggestion to accept model, customPrompts, endWithQuestion, commentLength, and commentTone
-async function fetchGeminiSuggestion(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-3-flash-preview', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  
-  console.log('[Butterfly] Making API call with model:', model, 'for site:', site);
-  
-  // Prompt structure: Author, Post, (optional) Current Comment, (optional) Refinement, then instruction
-  let prompt = `[POST-AUTHOR]
-${postAuthor}
-[/POST-AUTHOR]
-
-[POST-CONTENT]
-${postText}
-[/POST-CONTENT]`;
-  
-  if (currentComment && currentComment.trim()) {
-    prompt += `\n\n[CURRENT-COMMENT]
-${currentComment}
-[/CURRENT-COMMENT]`;
-  }
-  if (refinement && refinement.trim()) {
-    prompt += `\n\n[REFINEMENT-INSTRUCTIONS]
-${refinement}
-[/REFINEMENT-INSTRUCTIONS]`;
-  }
-
-  // Use custom prompt if available, otherwise fall back to default logic
-  const customPrompt = customPrompts[site];
-  if (customPrompt && customPrompt.trim()) {
-    prompt += `\n\n${customPrompt}`;
-  } else {
-    // Original platform-specific logic as fallback
-    if (site === 'producthunt') {
-      let authorReference = '';
-      if (postAuthor && postAuthor.toLowerCase() !== 'maker' && postAuthor.trim() !== '') {
-        authorReference = `The creator's name is '${postAuthor}'. You can refer to them by this name.`;
-      } else {
-        authorReference = `The creator's name was not identified; refer to them as 'the team', 'the creators', or 'the developers'. Do NOT use the word 'Maker' as a generic noun and do not invent a name.`;
-      }
-
-      if (currentComment && currentComment.trim()) {
-        prompt += `\n\nRefine the current comment for this Product Hunt post based on the refinement instructions. Focus on being supportive, insightful, or asking a relevant question. ${authorReference} Only output the final refined comment — no extra text, options, or formatting.`;
-      } else {
-        prompt += `\n\nWrite a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). ${authorReference} The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name.`;
-      }
-    } else if (site === 'twitter') {
-      if (currentComment && currentComment.trim()) {
-        prompt += `\n\nRefine the current comment for this Twitter/X post based on the refinement instructions. Keep it conversational and authentic. Only output the final refined comment — no extra text, options, or formatting.`;
-      } else {
-        prompt += `\n\nWrite a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting.`;
-      }
-    } else { // Default to LinkedIn
-      if (currentComment && currentComment.trim()) {
-        prompt += `\n\nRefine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text.`;
-      } else {
-        prompt += `\n\nWrite a single, concise, professional congratulatory comment for this LinkedIn post. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment.`;
-      }
-    }
-  }
-  
-  // Add slop words avoidance instruction
-  prompt += getSlopWordsInstruction();
-  
-  // Add tone instruction based on selector value
+function getToneInstruction(commentTone) {
   const toneInstructions = {
     'none': '',
     'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
@@ -213,64 +150,14 @@ ${refinement}
     'pushback': '\n\nIMPORTANT: Acknowledge one good point from the post, then respectfully challenge one assumption or aspect. Offer a constructive alternative or fix. Be friendly but thought-provoking.',
     'socratic': '\n\nIMPORTANT: Ask 2-3 sharp, thought-provoking questions that dig deeper into the topic. Questions should expose hidden assumptions or unexplored angles. End with suggesting a concrete next step.',
     'builder': '\n\nIMPORTANT: Focus on action and building. State a clear outcome or goal, list 2-3 concrete steps to achieve it, and give a specific deadline or timeframe. Be motivating and results-oriented.',
-    'challenger': '\n\nIMPORTANT: Set a high bar or ambitious challenge. Be crisp and bold. State what excellence looks like, set a specific date or metric, and inspire action. No wasted words.'
+    'challenger': '\n\nIMPORTANT: Set a high bar or ambitious challenge. Be crisp and bold. State what excellence looks like, set a specific date or metric, and inspire action. No wasted words.',
+    'christmas': '\n\nIMPORTANT: Write in a festive, warm Christmas tone. Use cozy, cheerful language and light seasonal imagery without overdoing it.'
   };
   
   if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
-    prompt += toneInstructions[commentTone];
+    return toneInstructions[commentTone];
   }
-  
-  // Add length instruction based on slider value
-  const lengthInstructions = [
-    '\n\nCRITICAL: Keep the comment very brief and concise - maximum very short 1 sentence.',
-    '', // Medium length - no additional instruction needed
-    '\n\nCRITICAL: Write a more detailed, thoughtful comment that is at least 3-4 sentences long. Provide more context and depth.'
-  ];
-  if (commentLength !== 1) { // Only add instruction if not medium
-    prompt += lengthInstructions[commentLength];
-  }
-  
-  // Add instruction to end with a question if enabled
-  if (endWithQuestion) {
-    prompt += '\n\nIMPORTANT: End your comment with a relevant, thoughtful question to encourage further discussion.';
-  }
-  
-  // Log the full prompt for debugging
-  console.log('[Butterfly] Executing prompt:', prompt);
-  lastDebugPrompt = prompt; // Store for debugging
-  
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }]
-  });
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body
-  });
-  let data;
-  try {
-    data = await res.json();
-  } catch (e) {
-    console.error('[Butterfly] Failed to parse API response:', e);
-    throw new Error('Could not parse Gemini API response');
-  }
-  if (!res.ok) {
-    console.error('[Butterfly] API error response:', JSON.stringify(data, null, 2));
-    let errorMessage = 'HTTP ' + res.status;
-    if (data && data.error) {
-      if (typeof data.error === 'string') {
-        errorMessage = data.error;
-      } else if (data.error.message) {
-        errorMessage = data.error.message;
-      } else if (data.error.code) {
-        errorMessage = `Error code: ${data.error.code}`;
-      }
-    }
-    throw new Error(errorMessage);
-  }
-  const suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  console.log('[Butterfly] Single suggestion generated:', suggestion ? 'Success' : 'Empty');
-  return suggestion;
+  return '';
 }
 
 // Generate multiple suggestions in a single API call
@@ -326,6 +213,12 @@ ${refinement}
       } else {
         mainInstruction = `Write comments for this Twitter/X post. Be conversational and authentic. Keep them brief and relevant to the topic.`;
       }
+    } else if (site === 'reddit') {
+      if (currentComment && currentComment.trim()) {
+        mainInstruction = `Refine the current comment for this Reddit post or comment based on the refinement instructions. Keep it conversational and authentic.`;
+      } else {
+        mainInstruction = `Write comments for this Reddit post or comment. Be conversational and authentic. Keep them brief and relevant to the topic.`;
+      }
     } else { // Default to LinkedIn
       if (currentComment && currentComment.trim()) {
         mainInstruction = `Refine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Include author's name in the comment.`;
@@ -343,26 +236,7 @@ ${refinement}
   prompt += getSlopWordsInstruction();
   
   // Add tone instruction
-  const toneInstructions = {
-    'none': '',
-    'friendly': '\n\nIMPORTANT: Write in a warm, friendly, and approachable tone. Be personable and welcoming.',
-    'excited': '\n\nIMPORTANT: Write in an enthusiastic, energetic tone. Show genuine excitement and passion.',
-    'reflective': '\n\nIMPORTANT: Write in a thoughtful, reflective tone. Be contemplative and show deep consideration.',
-    'bold': '\n\nIMPORTANT: Write in a bold, confident tone. Be assertive and direct with strong opinions.',
-    'provocative': '\n\nIMPORTANT: Write in a provocative, thought-provoking tone. Challenge assumptions and spark discussion.',
-    'funny': '\n\nIMPORTANT: Write in a light-hearted, humorous tone. Include wit or clever observations while staying respectful.',
-    'empathetic': '\n\nIMPORTANT: Write in an empathetic, understanding tone. Show compassion and emotional intelligence.',
-    'doomed': '\n\nIMPORTANT: Write in a pessimistic, doom-and-gloom tone. Express skepticism about outcomes and highlight potential problems or inevitable failures. Be cynical but articulate.',
-    'direct': '\n\nIMPORTANT: Be direct and concise. Use short, clear sentences with strong verbs. No hedging words (maybe, perhaps, might). Get straight to the point without fluff or filler.',
-    'pushback': '\n\nIMPORTANT: Acknowledge one good point from the post, then respectfully challenge one assumption or aspect. Offer a constructive alternative or fix. Be friendly but thought-provoking.',
-    'socratic': '\n\nIMPORTANT: Ask 2-3 sharp, thought-provoking questions that dig deeper into the topic. Questions should expose hidden assumptions or unexplored angles. End with suggesting a concrete next step.',
-    'builder': '\n\nIMPORTANT: Focus on action and building. State a clear outcome or goal, list 2-3 concrete steps to achieve it, and give a specific deadline or timeframe. Be motivating and results-oriented.',
-    'challenger': '\n\nIMPORTANT: Set a high bar or ambitious challenge. Be crisp and bold. State what excellence looks like, set a specific date or metric, and inspire action. No wasted words.'
-  };
-  
-  if (commentTone && commentTone !== 'none' && toneInstructions[commentTone]) {
-    prompt += toneInstructions[commentTone];
-  }
+  prompt += getToneInstruction(commentTone);
   
   // Add length instruction
   const lengthInstructions = [

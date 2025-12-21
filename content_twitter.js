@@ -82,6 +82,19 @@ function showContextInvalidatedMessage() {
   setTimeout(() => message.remove(), 10000);
 }
 
+function showInlineStatus(uiContainer, message) {
+  if (!uiContainer) return;
+  const existing = uiContainer.querySelector('.butterfly-inline-status');
+  if (existing) existing.remove();
+  
+  const status = document.createElement('span');
+  status.className = 'butterfly-inline-status';
+  status.textContent = `${message}?`;
+  status.title = 'Enable Twitter/X in Butterfly settings: click the 🦋 icon, check "Twitter/X (experimental)", then try again.';
+  status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
+  uiContainer.appendChild(status);
+}
+
 function setCommentBoxValue(commentBox, value) {
   if (commentBox.isContentEditable) {
     // Focus first to activate the field
@@ -187,18 +200,17 @@ async function getGeminiSuggestionForTwitter(postText, postAuthor, refinement = 
             resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
             return;
           }
-          // Handle both single suggestion (backward compatibility) and multiple suggestions
           if (response && response.error) {
             console.error('[Butterfly Twitter] API error:', response.error);
             resolve({ error: response.error });
+          } else if (response && response.disabled) {
+            resolve({ disabled: true });
           } else if (response && response.suggestions) {
             // Log debug prompt if available
             if (response.debugPrompt) {
               console.log('[Butterfly Twitter] Debug - Full prompt sent to API:\n', response.debugPrompt);
             }
             resolve({ suggestions: response.suggestions });
-          } else if (response && response.suggestion) {
-            resolve({ suggestion: response.suggestion });
           } else {
             resolve({ error: 'No suggestion received' });
           }
@@ -240,15 +252,13 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
       // Display error message directly in the comment field
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.disabled) {
+      showInlineStatus(uiContainer, 'Disabled for Twitter/X');
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly Twitter] Auto-suggestion applied.');
       addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
       addVariantsDropdown(commentBox, result.suggestions, 0);
-    } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
-      setCommentBoxValue(commentBox, result.suggestion);
-      console.log('[Butterfly Twitter] Auto-suggestion applied.');
-      addInteractionButtons(commentBox, tweetElement, suggestBtn);
     } else {
       console.log('[Butterfly Twitter] Auto-suggestion failed or returned empty.');
     }
@@ -448,11 +458,11 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, sug
       // Display error message directly in the comment field
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.disabled) {
+      showInlineStatus(uiContainer, 'Disabled for Twitter/X');
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addVariantsDropdown(commentBox, result.suggestions, 0);
-    } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
-      setCommentBoxValue(commentBox, result.suggestion);
     }
     
     refineBtn.disabled = false;
@@ -504,13 +514,12 @@ function injectUI(commentBox, tweetElement) {
       // Display error message directly in the comment field
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.disabled) {
+      showInlineStatus(uiContainer, 'Disabled for Twitter/X');
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
       addVariantsDropdown(commentBox, result.suggestions, 0);
-    } else if (result.suggestion && !result.suggestion.includes('Extension was updated')) {
-      setCommentBoxValue(commentBox, result.suggestion);
-      addInteractionButtons(commentBox, tweetElement, suggestBtn);
     }
     suggestBtn.disabled = false;
     suggestBtn.textContent = originalText;

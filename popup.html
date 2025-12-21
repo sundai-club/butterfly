@@ -53,6 +53,10 @@
           <label for="platform-producthunt">Product Hunt</label>
         </div>
         <div class="platform-checkbox">
+          <input type="checkbox" id="platform-reddit" checked>
+          <label for="platform-reddit">Reddit (old.reddit.com)</label>
+        </div>
+        <div class="platform-checkbox">
           <input type="checkbox" id="platform-twitter">
           <label for="platform-twitter">Twitter/X (experimental)</label>
         </div>
@@ -66,6 +70,7 @@
       <div class="prompt-tabs">
         <button class="tab-btn active" data-tab="linkedin">LinkedIn</button>
         <button class="tab-btn" data-tab="producthunt">Product Hunt</button>
+        <button class="tab-btn" data-tab="reddit">Reddit</button>
         <button class="tab-btn" data-tab="twitter">Twitter/X</button>
       </div>
       <div class="tab-content">
@@ -76,6 +81,10 @@
         <div class="tab-pane" id="tab-producthunt">
           <textarea class="prompt-textarea" id="producthunt-prompt" rows="7" placeholder="Enter Product Hunt prompt...">Write a single, concise, and engaging comment for this Product Hunt post. The comment should be supportive of the product and its creator(s). Use simple, clear language. The comment could highlight a cool feature, ask a question, or express excitement. Only output the final comment — no extra text, options, or formatting. If appropriate and known, mention the product name or the creator's name. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in French, write in French. If in Russian, write in Russian. If in English, write in English. Match the language exactly.</textarea>
           <button class="reset-prompt-btn" data-platform="producthunt" style="display:none;">Reset to Default</button>
+        </div>
+        <div class="tab-pane" id="tab-reddit">
+          <textarea class="prompt-textarea" id="reddit-prompt" rows="7" placeholder="Enter Reddit prompt...">Write a single, concise, thoughtful comment for this Reddit post or comment. Be conversational and authentic using simple, clear language. Only output the final comment — no extra text, options, or formatting. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in German, write in German. If in Spanish, write in Spanish. If in English, write in English. Match the language exactly.</textarea>
+          <button class="reset-prompt-btn" data-platform="reddit" style="display:none;">Reset to Default</button>
         </div>
         <div class="tab-pane" id="tab-twitter">
           <textarea class="prompt-textarea" id="twitter-prompt" rows="7" placeholder="Enter Twitter/X prompt...">Write a single, concise, engaging comment for this Twitter/X post. Be conversational and authentic using simple, clear language. Keep it brief and relevant to the topic. Only output the final comment — no extra text, options, or formatting. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in Japanese, write in Japanese. If in Russian, write in Russian. If in English, write in English. Match the language exactly.</textarea>
@@ -103,6 +112,7 @@
           <option value="socratic">Socratic Probe</option>
           <option value="builder">Builder Mode</option>
           <option value="challenger">Challenger</option>
+          <option value="christmas">Christmas 🎄</option>
         </select>
       </div>
       <div class="length-slider-container">

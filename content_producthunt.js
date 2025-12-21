@@ -38,6 +38,43 @@ function showContextInvalidatedMessage() {
   setTimeout(() => message.remove(), 10000);
 }
 
+let producthuntEnabled = true;
+
+function refreshProductHuntEnabled() {
+  if (!isExtensionContextValid()) {
+    producthuntEnabled = false;
+    return;
+  }
+  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+    if (chrome.runtime.lastError) {
+      if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('context invalidated')) {
+        showContextInvalidatedMessage();
+      }
+      return;
+    }
+    const enabledPlatforms = result.enabledPlatforms || {
+      linkedin: true,
+      twitter: false,
+      producthunt: true,
+      reddit: true
+    };
+    producthuntEnabled = enabledPlatforms.producthunt !== false;
+  });
+}
+
+function showInlineStatus(uiContainer, message) {
+  if (!uiContainer) return;
+  const existing = uiContainer.querySelector('.butterfly-inline-status');
+  if (existing) existing.remove();
+  
+  const status = document.createElement('span');
+  status.className = 'butterfly-inline-status';
+  status.textContent = `${message}?`;
+  status.title = 'Enable Product Hunt in Butterfly settings: click the 🦋 icon, check "Product Hunt", then try again.';
+  status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
+  uiContainer.appendChild(status);
+}
+
 function injectPHButtonStyles() {
   const styleId = 'butterfly-ph-styles';
   if (document.getElementById(styleId)) return;
@@ -172,18 +209,17 @@ async function getGeminiSuggestionForProductHunt(postText, postAuthor, refinemen
             resolve({ error: 'Extension was updated. Please refresh the page to continue using Butterfly.' });
             return;
           }
-          // Handle both single suggestion (backward compatibility) and multiple suggestions
           if (response && response.error) {
             console.error('[Butterfly PH] API error:', response.error);
             resolve({ error: response.error });
+          } else if (response && response.disabled) {
+            resolve({ disabled: true });
           } else if (response && response.suggestions) {
             // Log debug prompt if available
             if (response.debugPrompt) {
               console.log('[Butterfly Product Hunt] Debug - Full prompt sent to API:\n', response.debugPrompt);
             }
             resolve({ suggestions: response.suggestions });
-          } else if (response && response.suggestion) {
-            resolve({ suggestion: response.suggestion });
           } else {
             resolve({ error: 'No suggestion received' });
           }
@@ -197,6 +233,7 @@ async function getGeminiSuggestionForProductHunt(postText, postAuthor, refinemen
 }
 
 async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn) {
+  if (!producthuntEnabled) return;
   const isEmpty = (commentBox.isContentEditable && (commentBox.innerText.trim() === '' || commentBox.innerHTML.toLowerCase() === '<p><br></p>' || commentBox.innerHTML.toLowerCase() === '')) ||
     (!commentBox.isContentEditable && commentBox.value.trim() === '');
 
@@ -220,15 +257,13 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
       // Display error message directly in the comment field
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.disabled) {
+      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly PH] Auto-suggestion applied.');
       addInteractionButtons(commentBox, postElement, suggestBtn, result.suggestions);
       addVariantsDropdown(commentBox, result.suggestions, 0);
-    } else if (result.suggestion) {
-      setCommentBoxValue(commentBox, result.suggestion);
-      console.log('[Butterfly PH] Auto-suggestion applied.');
-      addInteractionButtons(commentBox, postElement, suggestBtn);
     } else {
       console.log('[Butterfly PH] Auto-suggestion failed or returned empty.');
     }
@@ -263,10 +298,19 @@ function injectUI(commentBox, postElement) {
   // Try to place it consistently. If commentBox is wrapped, its parent might be better.
   // For TipTap, the commentBox is the editor itself. Its parent is likely the form control wrapper.
   commentBox.parentElement.insertBefore(uiContainer, commentBox.nextSibling);
+  
+  if (!producthuntEnabled) {
+    showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+  }
 
   suggestBtn.onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (!producthuntEnabled) {
+      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      return;
+    }
     
     const originalText = suggestBtn.textContent;
     suggestBtn.disabled = true;
@@ -277,13 +321,12 @@ function injectUI(commentBox, postElement) {
       // Display error message directly in the comment field
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.disabled) {
+      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addInteractionButtons(commentBox, postElement, suggestBtn, result.suggestions);
       addVariantsDropdown(commentBox, result.suggestions, 0);
-    } else if (result.suggestion) {
-      setCommentBoxValue(commentBox, result.suggestion);
-      addInteractionButtons(commentBox, postElement, suggestBtn);
     }
     suggestBtn.disabled = false;
     suggestBtn.textContent = originalText;
@@ -406,6 +449,11 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance, sugg
     e.preventDefault();
     e.stopPropagation();
     
+    if (!producthuntEnabled) {
+      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      return;
+    }
+    
     const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
     refineBtn.disabled = true;
     refineBtn.textContent = 'Refining...';
@@ -431,11 +479,11 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance, sugg
       // Display error message directly in the comment field
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
+    } else if (result.disabled) {
+      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addVariantsDropdown(commentBox, result.suggestions, 0);
-    } else if (result.suggestion) {
-      setCommentBoxValue(commentBox, result.suggestion);
     }
     
     refineBtn.disabled = false;
@@ -464,7 +512,6 @@ function scanAndInjectProductHunt() {
     return;
   }
   
-  // Check if Product Hunt is enabled
   try {
     chrome.storage.sync.get(['enabledPlatforms'], (result) => {
       // Check for chrome.runtime.lastError
@@ -478,14 +525,10 @@ function scanAndInjectProductHunt() {
     const enabledPlatforms = result.enabledPlatforms || {
       linkedin: true,
       twitter: false,
-      producthunt: true
+      producthunt: true,
+      reddit: true
     };
-    
-    // Only proceed if Product Hunt is enabled
-    if (!enabledPlatforms.producthunt) {
-      console.log('[Butterfly PH] Extension is disabled for Product Hunt');
-      return;
-    }
+    producthuntEnabled = enabledPlatforms.producthunt !== false;
     
     // Selector for Product Hunt posts on listing pages (e.g., /posts) - this remains a general placeholder
     const postItems = document.querySelectorAll('div[class*="styles_postItem_"], article[class*="postListItem"]');
@@ -528,6 +571,9 @@ function scanAndInjectProductHunt() {
     }
   }
 }
+
+refreshProductHuntEnabled();
+setInterval(refreshProductHuntEnabled, 5000);
 
 // --- SPA Navigation & Robust Observer --- (Similar to content.js)
 let phCurrentFeed = null;
@@ -586,4 +632,3 @@ setInterval(() => {
 }, 3000);
 
 console.log('[Butterfly] Product Hunt content script execution finished.');
-
