@@ -650,10 +650,8 @@ const butterflyLastFillTime = new WeakMap();
 
   function addVariantsDropdown(box, suggestions, currentIndex = 0) {
     // Remove existing dropdown if any
-    const existingDropdown = box.parentElement.querySelector('.butterfly-variants-container');
-    if (existingDropdown) {
-      existingDropdown.remove();
-    }
+    box.parentElement.querySelectorAll('.butterfly-variants-container').forEach(container => container.remove());
+    document.querySelectorAll('.butterfly-variants-dropdown[data-commentbox-id="' + box.dataset.butterflyId + '"]').forEach(dropdown => dropdown.remove());
     
     if (!suggestions || suggestions.length <= 1) return;
     
@@ -671,7 +669,46 @@ const butterflyLastFillTime = new WeakMap();
     // Create dropdown menu
     const dropdown = document.createElement('div');
     dropdown.className = 'butterfly-variants-dropdown';
-    dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
+    dropdown.dataset.commentboxId = box.dataset.butterflyId;
+    dropdown.style.cssText = 'display: none; position: fixed; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 2147483647; overflow-y: auto;';
+
+    const positionDropdown = () => {
+      if (dropdown.style.display === 'none') return;
+      if (!variantsBtn.isConnected) {
+        dropdown.remove();
+        return;
+      }
+
+      const viewportPadding = 8;
+      const buttonRect = variantsBtn.getBoundingClientRect();
+      const availableWidth = Math.max(160, window.innerWidth - (viewportPadding * 2));
+      const dropdownWidth = Math.min(400, Math.max(300, buttonRect.width), availableWidth);
+
+      dropdown.style.width = dropdownWidth + 'px';
+      dropdown.style.maxHeight = Math.min(360, window.innerHeight - (viewportPadding * 2)) + 'px';
+
+      const dropdownHeight = dropdown.offsetHeight;
+      const spaceBelow = window.innerHeight - buttonRect.bottom - viewportPadding;
+      const top = spaceBelow >= dropdownHeight || buttonRect.top < dropdownHeight
+        ? buttonRect.bottom + 4
+        : Math.max(viewportPadding, buttonRect.top - dropdownHeight - 4);
+      const left = Math.min(
+        Math.max(viewportPadding, buttonRect.left),
+        window.innerWidth - dropdownWidth - viewportPadding
+      );
+
+      dropdown.style.top = top + 'px';
+      dropdown.style.left = left + 'px';
+    };
+
+    const closeDropdown = () => {
+      dropdown.style.display = 'none';
+    };
+
+    const openDropdown = () => {
+      dropdown.style.display = 'block';
+      positionDropdown();
+    };
     
     // Add each variant to dropdown
     suggestions.forEach((suggestion, index) => {
@@ -704,7 +741,7 @@ const butterflyLastFillTime = new WeakMap();
       
       option.onclick = () => {
         setCommentBoxValue(box, suggestion);
-        dropdown.style.display = 'none';
+        closeDropdown();
         // Update current selection styling
         dropdown.querySelectorAll('.butterfly-variant-option').forEach((opt, i) => {
           opt.style.backgroundColor = i === index ? '#f3f6fb' : 'white';
@@ -719,18 +756,24 @@ const butterflyLastFillTime = new WeakMap();
     variantsBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      if (dropdown.style.display === 'none') {
+        openDropdown();
+      } else {
+        closeDropdown();
+      }
     };
     
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
-      if (!variantsContainer.contains(e.target)) {
-        dropdown.style.display = 'none';
+      if (!variantsContainer.contains(e.target) && !dropdown.contains(e.target)) {
+        closeDropdown();
       }
     });
+    window.addEventListener('scroll', positionDropdown, true);
+    window.addEventListener('resize', positionDropdown);
     
     variantsContainer.appendChild(variantsBtn);
-    variantsContainer.appendChild(dropdown);
+    document.body.appendChild(dropdown);
     
     // Insert after the Refine button or after the comment box
     const refineBtn = box.parentElement.querySelector('.butterfly-refine-btn');
