@@ -168,9 +168,12 @@ body,
   font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
   background: var(--background);
   color: var(--text);
-  min-width: 270px;
+  width: 340px;
+  min-width: 0;
+  max-width: 340px;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .popup-container {
@@ -214,6 +217,7 @@ body,
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .model-picker-row label {
@@ -224,7 +228,11 @@ body,
 
 .model-picker-row select {
   flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
+  font-size: 0.9em;
 }
 
 /* Platform Settings Section */

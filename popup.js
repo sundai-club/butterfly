@@ -1,7 +1,8 @@
 // popup.js - Auto-save Gemini API key and model
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 const MODEL_ALIASES = {
+  'gemini-3.1-flash-lite': DEFAULT_GEMINI_MODEL,
   'gemini-3-pro-preview': DEFAULT_GEMINI_MODEL
 };
 

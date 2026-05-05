@@ -1,8 +1,9 @@
 // background.js - Handles Gemini API requests
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 const MODEL_FALLBACKS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
 const MODEL_ALIASES = {
+  'gemini-3.1-flash-lite': DEFAULT_GEMINI_MODEL,
   'gemini-3-pro-preview': DEFAULT_GEMINI_MODEL
 };
 const DEFAULT_ENABLED_PLATFORMS = {
