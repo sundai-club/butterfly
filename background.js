@@ -1,10 +1,23 @@
 // background.js - Handles Gemini API requests
 
-const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
-const MODEL_FALLBACKS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+const DEFAULT_MODEL_MODE = 'flash';
+const MODEL_CHAINS = {
+  flash: [
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite'
+  ],
+  pro: [
+    'gemini-3.1-pro-preview',
+    'gemini-2.5-pro'
+  ]
+};
+const MAX_TRANSIENT_RETRIES_PER_MODEL = 2;
+const TRANSIENT_RETRY_DELAYS_MS = [700, 1600];
 const MODEL_ALIASES = {
-  'gemini-3.1-flash-lite': DEFAULT_GEMINI_MODEL,
-  'gemini-3-pro-preview': DEFAULT_GEMINI_MODEL
+  'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
+  'gemini-3-pro-preview': 'gemini-3.1-pro-preview'
 };
 const DEFAULT_ENABLED_PLATFORMS = {
   linkedin: true,
@@ -55,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Get API key, model, custom prompts, endWithQuestion, commentLength, tone, and platform settings from storage
     chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms', 'commentTone'], (result) => {
       const apiKey = result.geminiApiKey;
-      const model = normalizeGeminiModel(result.geminiModel);
+      const modelMode = normalizeModelMode(result.geminiModel);
       const customPrompts = result.customPrompts || {};
       const endWithQuestion = result.endWithQuestion || false;
       const commentLength = result.commentLength !== undefined ? result.commentLength : 1; // Default to medium
@@ -76,8 +89,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ error: '🦋 Welcome to Butterfly! To get started:\n1. Click the Butterfly extension icon (🦋) in your browser toolbar\n2. Get a free API key from Google AI Studio (link provided)\n3. Paste your API key in the settings\n4. Start generating AI comments!' });
         return;
       }
-      // Pass model, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
-      fetchGeminiSuggestions(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
+      // Pass model mode, customPrompts, endWithQuestion, commentLength, and commentTone to fetchGeminiSuggestion
+      fetchGeminiSuggestions(site, postText, postAuthor, apiKey, modelMode, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone)
         .then((result) => {
           console.log('[Butterfly] Generated result:', result);
           if (!result || !result.suggestions || result.suggestions.length === 0) {
@@ -94,11 +107,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             errorMessage = e.message;
             // Check for common API key issues
             if (e.message.includes('API_KEY_INVALID') || e.message.includes('403')) {
-              errorMessage = '❌ Invalid API key. To fix:\n1. Click the Butterfly icon (🦋) in toolbar\n2. Check your API key is correct\n3. Get a new key from Google AI Studio if needed';
+              errorMessage = 'Invalid Gemini API key.\n\nWhat to do:\n1. Click the Butterfly extension icon in your browser toolbar.\n2. Paste a valid key from Google AI Studio.\n3. Click "check" and try again.';
             } else if (e.message.includes('QUOTA_EXCEEDED') || e.message.includes('429')) {
-              errorMessage = '⏳ API quota exceeded. Your free tier limit was reached.\nTry again in a few minutes or upgrade your Google AI Studio plan.';
+              errorMessage = 'Gemini quota or rate limit reached.\n\nWhat to do:\n1. Wait a few minutes and click "Suggest Comment" again.\n2. If this keeps happening, open Butterfly settings and switch between Flash (free) and Pro (paid).\n3. Check your usage in Google AI Studio.';
+            } else if (isTransientGeminiError(e)) {
+              errorMessage = 'Gemini is temporarily unavailable.\n\nWhat to do:\n1. Click "Suggest Comment" again in a moment.\n2. If it keeps failing, open Butterfly settings and switch between Flash (free) and Pro (paid).\n3. Check Google AI Studio status/usage if the issue persists.';
             } else if (e.message.includes('400')) {
-              errorMessage = '⚠️ Request failed. Try:\n1. Click Butterfly icon (🦋)\n2. Switch to a different model\n3. Check your settings';
+              errorMessage = 'Gemini rejected this request.\n\nWhat to do:\n1. Open Butterfly settings.\n2. Switch to a different model.\n3. Try generating again.';
             }
           }
           sendResponse({ error: errorMessage });
@@ -143,15 +158,20 @@ function getSlopWordsInstruction() {
   return instruction;
 }
 
-function normalizeGeminiModel(model) {
-  const trimmed = typeof model === 'string' ? model.trim() : '';
-  if (!trimmed) return DEFAULT_GEMINI_MODEL;
-  return MODEL_ALIASES[trimmed] || trimmed;
+function normalizeModelMode(modelModeOrLegacyModel) {
+  const value = typeof modelModeOrLegacyModel === 'string' ? modelModeOrLegacyModel.trim() : '';
+  if (value === 'flash' || value === 'pro') return value;
+
+  const normalizedLegacyModel = MODEL_ALIASES[value] || value;
+  if (MODEL_CHAINS.pro.includes(normalizedLegacyModel)) return 'pro';
+  if (MODEL_CHAINS.flash.includes(normalizedLegacyModel)) return 'flash';
+
+  return DEFAULT_MODEL_MODE;
 }
 
-function getModelsToTry(selectedModel) {
-  const normalized = normalizeGeminiModel(selectedModel);
-  return [normalized, ...MODEL_FALLBACKS].filter((model, index, models) => model && models.indexOf(model) === index);
+function getModelsToTry(modelModeOrLegacyModel) {
+  const modelMode = normalizeModelMode(modelModeOrLegacyModel);
+  return MODEL_CHAINS[modelMode] || MODEL_CHAINS[DEFAULT_MODEL_MODE];
 }
 
 function isModelUnavailableError(error) {
@@ -162,6 +182,31 @@ function isModelUnavailableError(error) {
     message.includes('not supported for generatecontent') ||
     message.includes('deprecated') ||
     message.includes('shut down');
+}
+
+function isTransientGeminiError(error) {
+  if (!error) return false;
+  const message = String(error.message || error).toLowerCase();
+  return error.status === 429 ||
+    error.status === 500 ||
+    error.status === 502 ||
+    error.status === 503 ||
+    error.status === 504 ||
+    message.includes('service is currently unavailable') ||
+    message.includes('temporarily unavailable') ||
+    message.includes('try again later') ||
+    message.includes('overloaded') ||
+    message.includes('quota');
+}
+
+function isRetryableModelFailure(error) {
+  return isModelUnavailableError(error) ||
+    isTransientGeminiError(error) ||
+    Boolean(error && error.retryNextModel);
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function getToneInstruction(commentTone) {
@@ -190,23 +235,44 @@ function getToneInstruction(commentTone) {
 }
 
 // Generate multiple suggestions in a single API call
-async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = DEFAULT_GEMINI_MODEL, refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
-  const modelsToTry = getModelsToTry(model);
+async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, modelMode = DEFAULT_MODEL_MODE, refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
+  const modelsToTry = getModelsToTry(modelMode);
   let lastError;
 
   for (const modelToTry of modelsToTry) {
     try {
-      return await fetchGeminiSuggestionsWithModel(site, postText, postAuthor, apiKey, modelToTry, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone);
+      return await fetchGeminiSuggestionsWithRetry(site, postText, postAuthor, apiKey, modelToTry, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone);
     } catch (error) {
       lastError = error;
-      if (!isModelUnavailableError(error) || modelToTry === modelsToTry[modelsToTry.length - 1]) {
+      if (!isRetryableModelFailure(error) || modelToTry === modelsToTry[modelsToTry.length - 1]) {
         throw error;
       }
-      console.warn(`[Butterfly] Gemini model ${modelToTry} unavailable, trying fallback model ${modelsToTry[modelsToTry.indexOf(modelToTry) + 1]}`);
+      console.warn(`[Butterfly] Gemini model ${modelToTry} failed, trying fallback model ${modelsToTry[modelsToTry.indexOf(modelToTry) + 1]}`);
     }
   }
 
   throw lastError || new Error('No Gemini model available');
+}
+
+async function fetchGeminiSuggestionsWithRetry(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES_PER_MODEL; attempt++) {
+    try {
+      return await fetchGeminiSuggestionsWithModel(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientGeminiError(error) || attempt === MAX_TRANSIENT_RETRIES_PER_MODEL) {
+        throw error;
+      }
+
+      const delayMs = TRANSIENT_RETRY_DELAYS_MS[attempt] || TRANSIENT_RETRY_DELAYS_MS[TRANSIENT_RETRY_DELAYS_MS.length - 1];
+      console.warn(`[Butterfly] Gemini transient error with ${model}; retrying in ${delayMs}ms`, error);
+      await delay(delayMs);
+    }
+  }
+
+  throw lastError || new Error('Gemini request failed');
 }
 
 async function fetchGeminiSuggestionsWithModel(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone) {
@@ -269,9 +335,13 @@ ${refinement}
       }
     } else { // Default to LinkedIn
       if (currentComment && currentComment.trim()) {
-        mainInstruction = `Refine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Include author's name in the comment.`;
+        mainInstruction = postAuthor && postAuthor.trim()
+          ? `Refine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. You may mention ${postAuthor.trim()} if it sounds natural.`
+          : `Refine the current comment based on refinement instructions, keeping it as a congratulatory comment for this LinkedIn post. Do not invent an author name.`;
       } else {
-        mainInstruction = `Write professional congratulatory comments for this LinkedIn post. Include author's name in the comments.`;
+        mainInstruction = postAuthor && postAuthor.trim()
+          ? `Write professional congratulatory comments for this LinkedIn post. You may mention ${postAuthor.trim()} if it sounds natural.`
+          : `Write professional congratulatory comments for this LinkedIn post. Do not invent an author name.`;
       }
     }
   }
@@ -300,6 +370,8 @@ ${refinement}
   if (endWithQuestion) {
     prompt += '\n\nIMPORTANT: End each comment with a relevant, thoughtful, tone and style-appropriate question to encourage further discussion.';
   }
+
+  prompt += '\n\nIMPORTANT: Never output template placeholders such as [POST-AUTHOR], [AUTHOR], [NAME], or similar bracketed placeholders. If an author name is unknown, write the comment without a name.';
   
   // Log the full prompt for debugging
   console.log('[Butterfly] Executing prompt for 4 variants:', prompt);
@@ -350,6 +422,7 @@ ${refinement}
       }
       const error = new Error(errorMessage);
       error.status = res.status;
+      error.apiCode = data && data.error && data.error.status;
       throw error;
     }
     
@@ -357,6 +430,11 @@ ${refinement}
     console.log('[Butterfly] API response received, parsing variants');
     
     const suggestions = parseGeminiSuggestions(responseText);
+    if (suggestions.length === 0) {
+      const error = new Error(`No suggestions generated by ${model}`);
+      error.retryNextModel = true;
+      throw error;
+    }
     
     console.log('[Butterfly] Parsed', suggestions.length, 'suggestions from response');
     console.log('[Butterfly] Returning suggestions object:', { suggestions, debugPrompt: prompt });

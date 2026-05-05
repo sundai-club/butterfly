@@ -1,9 +1,21 @@
 // popup.js - Auto-save Gemini API key and model
 
-const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+const DEFAULT_MODEL_MODE = 'flash';
+const MODEL_CHAINS = {
+  flash: [
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite'
+  ],
+  pro: [
+    'gemini-3.1-pro-preview',
+    'gemini-2.5-pro'
+  ]
+};
 const MODEL_ALIASES = {
-  'gemini-3.1-flash-lite': DEFAULT_GEMINI_MODEL,
-  'gemini-3-pro-preview': DEFAULT_GEMINI_MODEL
+  'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
+  'gemini-3-pro-preview': 'gemini-3.1-pro-preview'
 };
 
 // Auto-save API key with debouncing and auto-test
@@ -28,21 +40,20 @@ document.getElementById('api-key').addEventListener('input', function() {
   }
 });
 
-// Auto-save model selection
+// Auto-save model mode selection
 document.getElementById('model-picker').addEventListener('change', function() {
   chrome.storage.sync.set({ geminiModel: this.value });
 });
 
-function normalizeGeminiModel(model) {
-  const value = typeof model === 'string' ? model.trim() : '';
-  return MODEL_ALIASES[value] || value || DEFAULT_GEMINI_MODEL;
-}
+function normalizeModelMode(modelModeOrLegacyModel) {
+  const value = typeof modelModeOrLegacyModel === 'string' ? modelModeOrLegacyModel.trim() : '';
+  if (value === 'flash' || value === 'pro') return value;
 
-function getAvailableModel(model) {
-  const normalized = normalizeGeminiModel(model);
-  const picker = document.getElementById('model-picker');
-  const option = Array.from(picker.options).find(item => item.value === normalized);
-  return option ? normalized : DEFAULT_GEMINI_MODEL;
+  const normalizedLegacyModel = MODEL_ALIASES[value] || value;
+  if (MODEL_CHAINS.pro.includes(normalizedLegacyModel)) return 'pro';
+  if (MODEL_CHAINS.flash.includes(normalizedLegacyModel)) return 'flash';
+
+  return DEFAULT_MODEL_MODE;
 }
 
 // Default prompts for each platform
@@ -59,11 +70,11 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
-  // Set model picker, default to a stable 2.5 model.
-  const selectedModel = getAvailableModel(result.geminiModel);
-  document.getElementById('model-picker').value = selectedModel;
-  if (result.geminiModel && result.geminiModel !== selectedModel) {
-    chrome.storage.sync.set({ geminiModel: selectedModel });
+  // Set model mode picker and migrate older saved concrete model IDs.
+  const selectedModelMode = normalizeModelMode(result.geminiModel);
+  document.getElementById('model-picker').value = selectedModelMode;
+  if (result.geminiModel && result.geminiModel !== selectedModelMode) {
+    chrome.storage.sync.set({ geminiModel: selectedModelMode });
   }
   
   // Load custom prompts or use defaults
@@ -136,17 +147,9 @@ async function testApiKey(key) {
   resultSpan.textContent = 'Testing...';
   
   try {
-    const model = document.getElementById('model-picker').value || DEFAULT_GEMINI_MODEL;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: 'Test' }] }]
-      })
-    });
-    
+    const modelMode = normalizeModelMode(document.getElementById('model-picker').value);
+    const response = await testApiKeyAgainstModels(key, MODEL_CHAINS[modelMode]);
+
     if (response.ok) {
       resultSpan.className = 'test-result success';
       resultSpan.textContent = '✓ Valid';
@@ -166,6 +169,24 @@ async function testApiKey(key) {
     testBtn.disabled = false;
     // Keep the result visible - don't clear it
   }
+}
+
+async function testApiKeyAgainstModels(key, models) {
+  let lastResponse;
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Test' }] }]
+      })
+    });
+
+    if (response.ok) return response;
+    lastResponse = response;
+  }
+  return lastResponse;
 }
 
 // Manual test button click
