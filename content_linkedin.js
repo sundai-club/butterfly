@@ -73,8 +73,119 @@ function findFirstWithText(root, selectors) {
   return null;
 }
 
+const LINKEDIN_POST_CONTAINER_SELECTOR = [
+  '.feed-shared-update-v2',
+  '.update-components-update',
+  '.occludable-update',
+  '[data-urn^="urn:li:activity"]',
+  '[data-id^="urn:li:activity"]',
+  '[componentkey*="FeedType_"]',
+  '[role="listitem"]'
+].join(', ');
+
+const LINKEDIN_POST_AUTHOR_CONTROL_SELECTOR = [
+  '[aria-label^="Open control menu for post by "]',
+  '[aria-label^="Hide post by "]'
+].join(', ');
+
+function normalizeLinkedInAuthorName(value) {
+  let text = cleanLinkedInText(value).replace(/\u00a0/g, ' ');
+  if (!text) return '';
+
+  const firstLine = text.split('\n').map(part => part.trim()).find(Boolean) || '';
+  text = firstLine
+    .replace(/^Open control menu for post by\s+/i, '')
+    .replace(/^Hide post by\s+/i, '')
+    .replace(/^View\s+/i, '')
+    .replace(/(?:'|’)?s\s+profile$/i, '')
+    .replace(/\s*•.*$/, '')
+    .replace(/\s+\b(?:1st|2nd|3rd)\b.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!text || text.length > 80) return '';
+  if (/https?:\/\//i.test(text)) return '';
+  if (/\b(comment|repost|send|reaction|visibility|feed post|view image)\b/i.test(text)) return '';
+  if (text.split(/\s+/).length > 8) return '';
+
+  return text;
+}
+
+function getElementAuthorName(element) {
+  if (!element) return '';
+  const values = [
+    element.getAttribute && element.getAttribute('aria-label'),
+    element.getAttribute && element.getAttribute('alt'),
+    element.getAttribute && element.getAttribute('title'),
+    getElementText(element)
+  ];
+
+  for (const value of values) {
+    const authorName = normalizeLinkedInAuthorName(value || '');
+    if (authorName) return authorName;
+  }
+  return '';
+}
+
+function findFirstAuthorName(root, selectors) {
+  if (!root) return '';
+  for (const selector of selectors) {
+    const candidates = root.querySelectorAll(selector);
+    for (const candidate of candidates) {
+      const authorName = getElementAuthorName(candidate);
+      if (authorName) return authorName;
+    }
+  }
+  return '';
+}
+
+function hasLinkedInPostSignals(element) {
+  if (!element || !element.querySelector) return false;
+  return Boolean(
+    element.querySelector(LINKEDIN_POST_AUTHOR_CONTROL_SELECTOR) ||
+    element.querySelector('[data-ad-preview="message"], [componentkey^="feed-commentary"], [componentkey*="feed-commentary"]') ||
+    element.querySelector('.feed-shared-update-v2__description, .update-components-update-v2__commentary, .update-components-text')
+  );
+}
+
+function findLinkedInPostElementFromCommentBox(commentBox) {
+  if (!commentBox) return null;
+
+  const closestKnownPost = commentBox.closest(LINKEDIN_POST_CONTAINER_SELECTOR);
+  if (closestKnownPost && closestKnownPost.tagName !== 'MAIN' && hasLinkedInPostSignals(closestKnownPost)) {
+    return closestKnownPost;
+  }
+
+  let node = commentBox.parentElement;
+  while (node && node !== document.body) {
+    if (node.tagName === 'MAIN') return null;
+    if (hasLinkedInPostSignals(node)) return node;
+    node = node.parentElement;
+  }
+
+  return null;
+}
+
+function findLinkedInPostHeader(postElement) {
+  if (!postElement) return null;
+
+  const legacyHeader = postElement.querySelector('.update-components-actor, .feed-shared-actor, .social-details-social-actor');
+  if (legacyHeader) return legacyHeader;
+
+  const control = postElement.querySelector(LINKEDIN_POST_AUTHOR_CONTROL_SELECTOR);
+  let node = control && control.parentElement;
+  while (node && node !== postElement) {
+    if (node.querySelector('a[href*="/in/"], a[href*="/company/"]')) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+
+  return null;
+}
+
 function findReplyContext(commentBox) {
-  const replyBox = commentBox.closest('.comments-comment-box--reply, [class*="comment-box"][class*="reply"]');
+  const replyBox = commentBox.closest('.comments-comment-box--reply, .social-details-social-comment-box--reply, [class*="comment-box"][class*="reply"]');
   if (!replyBox) return null;
 
   const directComment = replyBox.closest('article.comments-comment-entity, .comments-comment-entity');
@@ -95,6 +206,8 @@ function findReplyContext(commentBox) {
 
 // New function to extract both post text and author
 function extractPostInfo(postElement, commentBox) {
+  const scopedPostElement = findLinkedInPostElementFromCommentBox(commentBox) || postElement;
+
   // Check if this is a reply to a comment
   if (commentBox) {
     const parentArticle = findReplyContext(commentBox);
@@ -111,6 +224,7 @@ function extractPostInfo(postElement, commentBox) {
         '.comments-comment-meta__description-title',
         '.comments-comment-meta__actor-name',
         '.comments-post-meta__name',
+        '.comments-comment-meta__description-container span[aria-hidden="true"]',
         'a[href*="/in/"] span[aria-hidden="true"]',
         'a[href*="/company/"] span[aria-hidden="true"]'
       ]);
@@ -126,7 +240,7 @@ function extractPostInfo(postElement, commentBox) {
   
   // Fallback to main post extraction
   // Try to extract the main post text
-  const mainTextElem = findFirstWithText(postElement, [
+  const mainTextElem = findFirstWithText(scopedPostElement, [
     '[data-ad-preview="message"]',
     '.feed-shared-update-v2__description',
     '.update-components-text',
@@ -136,30 +250,59 @@ function extractPostInfo(postElement, commentBox) {
   ]);
   const postText = getElementText(mainTextElem);
 
-  // Try multiple selectors for author name
-  let authorElem = findFirstWithText(postElement, [
+  // Try post header controls first. The redesigned feed exposes the exact
+  // author in aria labels even when class names are obfuscated.
+  const authorFromControls = findFirstAuthorName(scopedPostElement, [
+    LINKEDIN_POST_AUTHOR_CONTROL_SELECTOR
+  ]);
+
+  const visibleHeader = findLinkedInPostHeader(scopedPostElement);
+  let postAuthor = authorFromControls || findFirstAuthorName(visibleHeader, [
+    'a[href*="/in/"] img[alt]',
+    'a[href*="/company/"] img[alt]',
+    'a[href*="/in/"] svg[aria-label]',
+    'a[href*="/company/"] svg[aria-label]',
+    'a[href*="/in/"][aria-label]',
+    'a[href*="/company/"][aria-label]',
     '.feed-shared-actor__name',
     '.update-components-actor__name',
     '.feed-shared-actor__meta a',
     '.update-components-actor__meta a',
     '.update-components-actor__title span[aria-hidden="true"]',
     '.feed-shared-actor__title span[aria-hidden="true"]',
+    '.update-components-actor__title',
+    '.feed-shared-actor__title',
+    '.feed-shared-actor__container-link span[aria-hidden="true"]',
+    '.update-components-actor__container-link span[aria-hidden="true"]',
+    '.social-details-social-actor__name',
+    '.social-details-social-actor__title span[aria-hidden="true"]',
+    '.actor-name',
+    'span[dir="ltr"] span[aria-hidden="true"]',
+    '[aria-label*="  1st"]',
+    '[aria-label*="  2nd"]',
+    '[aria-label*="  3rd"]',
     'a[href*="/in/"] span[aria-hidden="true"]',
     'a[href*="/company/"] span[aria-hidden="true"]'
   ]);
 
   // Fallback: try first anchor or span in likely header containers
-  if (!authorElem) {
-    const header = postElement.querySelector('.feed-shared-actor, .update-components-actor');
+  if (!postAuthor) {
+    const header = scopedPostElement.querySelector('.feed-shared-actor, .update-components-actor');
     if (header) {
-      authorElem = header.querySelector('a, span');
+      postAuthor = getElementAuthorName(header.querySelector('a, span'));
     }
   }
 
   // Debug: log all possible candidates
   // const candidates = postElement.querySelectorAll('.feed-shared-actor__name, .update-components-actor__name, .feed-shared-actor__meta a, .update-components-actor__meta a, .feed-shared-actor a, .update-components-actor a, a, span');
   // console.log('[Butterfly] Author candidates:', candidates);
-  const postAuthor = getElementText(authorElem);
+  if (!postAuthor) {
+    postAuthor = findFirstAuthorName(visibleHeader, [
+      'a[href*="/company/"] span[aria-hidden="true"]',
+      'a[href*="/in/"] span[aria-hidden="true"]',
+      'span[aria-hidden="true"]'
+    ]);
+  }
   console.log('[Butterfly] Selected author:', postAuthor);
   return { postText, postAuthor };
 }
@@ -319,10 +462,18 @@ const butterflyLastFillTime = new WeakMap();
 (function autoFillLinkedInComments() {
   const COMMENT_SELECTORS = [
     '.comments-comment-box__editor',
+    '.social-details-social-comment-box .ql-editor[contenteditable="true"]',
+    '.social-details-social-comment-box [contenteditable="true"]',
     '.ql-editor[contenteditable="true"]',
     '[data-lexical-editor="true"][contenteditable="true"]',
     '.comments-comment-box [contenteditable="true"]',
     '.comments-comment-texteditor [contenteditable="true"]',
+    '.comments-comment-texteditor__content [contenteditable="true"]',
+    '.comments-comment-box-comment__text-editor [contenteditable="true"]',
+    'div[contenteditable="true"][data-placeholder*="comment" i]',
+    'div[contenteditable="true"][data-placeholder*="reply" i]',
+    'div[contenteditable="true"][aria-placeholder*="comment" i]',
+    'div[contenteditable="true"][aria-placeholder*="reply" i]',
     'div[role="textbox"][contenteditable="true"][aria-label*="comment" i]',
     'div[role="textbox"][contenteditable="true"][aria-label*="reply" i]',
     'div[contenteditable="true"][aria-label*="Add a comment" i]',
@@ -336,23 +487,54 @@ const butterflyLastFillTime = new WeakMap();
 
   // Helper to find the post element from a comment box
   function findPostElementFromCommentBox(box) {
-    return box.closest('.feed-shared-update-v2, .update-components-update, [data-urn^="urn:li:activity"], [data-id^="urn:li:activity"]')
+    return findLinkedInPostElementFromCommentBox(box)
+      || box.closest('.feed-shared-update-v2, .update-components-update, .occludable-update, [data-urn^="urn:li:activity"], [data-id^="urn:li:activity"]')
       || box.closest('article:not(.comments-comment-entity), [role="article"]:not(.comments-comment-entity)')
-      || document.querySelector('main');
+      || null;
+  }
+
+  function findCommentComposer(box) {
+    return box.closest('.comments-comment-box, .social-details-social-comment-box, form.comments-comment-box')
+      || box.closest('.comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor')
+      || box.parentElement;
   }
 
   function isLinkedInCommentBox(box) {
     if (!box || box.dataset.butterflyUiContainer === 'true') return false;
     if (box.closest('.butterfly-ui-container')) return false;
-    if (box.closest('.comments-comment-box, .comments-comment-texteditor, form.comments-comment-box')) return true;
+    if (box.closest('.share-box-feed-entry, .share-creation-state, .share-box, [data-test-modal-id="share-box"]')) return false;
+    if (box.closest('.comments-comment-box, .comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor, .social-details-social-comment-box, form.comments-comment-box')) return true;
 
     const label = [
       box.getAttribute('aria-label'),
+      box.getAttribute('aria-placeholder'),
       box.getAttribute('data-placeholder'),
       box.getAttribute('placeholder')
     ].filter(Boolean).join(' ').toLowerCase();
 
-    return label.includes('comment') || label.includes('reply');
+    if (label.includes('comment') || label.includes('reply')) return true;
+
+    return Boolean(
+      box.classList.contains('ql-editor') &&
+      findPostElementFromCommentBox(box) &&
+      box.closest('.feed-shared-update-v2, .update-components-update, .occludable-update, [data-urn^="urn:li:activity"], [data-id^="urn:li:activity"]')
+    );
+  }
+
+  function getCanonicalCommentBox(box) {
+    if (!box) return null;
+    if (!box.isContentEditable) return box;
+
+    if (box.querySelector('[contenteditable="true"]')) {
+      return box.querySelector(
+        '.ql-editor[contenteditable="true"], [data-lexical-editor="true"][contenteditable="true"], div[role="textbox"][contenteditable="true"], [contenteditable="true"]'
+      );
+    }
+
+    const nestedEditor = box.querySelector(
+      '.ql-editor[contenteditable="true"], [data-lexical-editor="true"][contenteditable="true"], div[role="textbox"][contenteditable="true"]'
+    );
+    return nestedEditor || box;
   }
 
   function setLexicalEditorValue(box, value) {
@@ -629,19 +811,29 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   function injectUI(box, postElement) {
-    // Check if UI already exists
-    let uiContainer = box.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]');
-    if (uiContainer) {
-      return;
-    }
-    
+    const composer = findCommentComposer(box);
+    if (!composer) return;
+
     // Assign unique ID to comment box
     if (!box.dataset.butterflyId) {
       box.dataset.butterflyId = 'li-cb-' + Date.now() + Math.random().toString(36).substring(2, 7);
     }
+
+    const existingContainers = composer.querySelectorAll('.butterfly-ui-container');
+    if (existingContainers.length > 0) {
+      existingContainers.forEach((container, index) => {
+        if (index > 0) container.remove();
+      });
+      composer.dataset.butterflyInjected = 'true';
+      return;
+    }
+
+    if (box.dataset.butterflyInjected === 'true' || composer.dataset.butterflyInjected === 'true') return;
+    composer.dataset.butterflyInjected = 'true';
+    box.dataset.butterflyInjected = 'true';
     
     // Create UI container
-    uiContainer = document.createElement('div');
+    const uiContainer = document.createElement('div');
     uiContainer.className = 'butterfly-ui-container';
     uiContainer.dataset.commentboxId = box.dataset.butterflyId;
     uiContainer.style.cssText = 'display: flex; align-items: center; margin-top: 5px; flex-wrap: wrap;';
@@ -692,18 +884,30 @@ const butterflyLastFillTime = new WeakMap();
 
   async function scanAndFill() {
     // Leading-edge throttle per comment box (1s)
+    const seenBoxes = new Set();
+    const seenComposers = new Set();
     for (const sel of COMMENT_SELECTORS) {
       const boxes = document.querySelectorAll(sel);
-      for (const box of boxes) {
+      for (const matchedBox of boxes) {
+        const box = getCanonicalCommentBox(matchedBox);
+        if (!box || seenBoxes.has(box)) continue;
+        seenBoxes.add(box);
         if (!isLinkedInCommentBox(box)) continue;
+        const composer = findCommentComposer(box);
+        if (!composer || seenComposers.has(composer)) continue;
+        seenComposers.add(composer);
         const now = Date.now();
-        const last = butterflyLastFillTime.get(box) || 0;
+        const last = butterflyLastFillTime.get(composer) || 0;
         if (now - last >= 1000) {
-          butterflyLastFillTime.set(box, now);
+          butterflyLastFillTime.set(composer, now);
           const postElement = findPostElementFromCommentBox(box);
-          if (postElement && !box.dataset.butterflyInjected) {
+          if (postElement && composer.querySelectorAll('.butterfly-ui-container').length > 1) {
+            composer.querySelectorAll('.butterfly-ui-container').forEach((container, index) => {
+              if (index > 0) container.remove();
+            });
+          }
+          if (postElement && !composer.dataset.butterflyInjected) {
             injectUI(box, postElement);
-            box.dataset.butterflyInjected = 'true';
           }
         }
       }
