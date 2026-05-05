@@ -1,5 +1,10 @@
 // popup.js - Auto-save Gemini API key and model
 
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const MODEL_ALIASES = {
+  'gemini-3-pro-preview': DEFAULT_GEMINI_MODEL
+};
+
 // Auto-save API key with debouncing and auto-test
 let apiKeyTimeout;
 let testTimeout;
@@ -27,6 +32,18 @@ document.getElementById('model-picker').addEventListener('change', function() {
   chrome.storage.sync.set({ geminiModel: this.value });
 });
 
+function normalizeGeminiModel(model) {
+  const value = typeof model === 'string' ? model.trim() : '';
+  return MODEL_ALIASES[value] || value || DEFAULT_GEMINI_MODEL;
+}
+
+function getAvailableModel(model) {
+  const normalized = normalizeGeminiModel(model);
+  const picker = document.getElementById('model-picker');
+  const option = Array.from(picker.options).find(item => item.value === normalized);
+  return option ? normalized : DEFAULT_GEMINI_MODEL;
+}
+
 // Default prompts for each platform
 const defaultPrompts = {
   linkedin: "Write a single, concise, professional congratulatory comment for this LinkedIn post. Use simple, clear language. Only output the final comment — do not include options, explanations, formatting, or any extra text. Include author's name in the comment. IMPORTANT: You MUST write your response in the SAME LANGUAGE as the original post. If the post is in Russian, write in Russian. If in Spanish, write in Spanish. If in English, write in English. Match the language exactly.",
@@ -41,8 +58,12 @@ chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWit
     document.getElementById('api-key').value = result.geminiApiKey;
     showKeyPreview(result.geminiApiKey);
   }
-  // Set model picker, default to gemini-3-flash-preview
-  document.getElementById('model-picker').value = result.geminiModel || 'gemini-3-flash-preview';
+  // Set model picker, default to a stable 2.5 model.
+  const selectedModel = getAvailableModel(result.geminiModel);
+  document.getElementById('model-picker').value = selectedModel;
+  if (result.geminiModel && result.geminiModel !== selectedModel) {
+    chrome.storage.sync.set({ geminiModel: selectedModel });
+  }
   
   // Load custom prompts or use defaults
   const customPrompts = result.customPrompts || {};
@@ -114,7 +135,7 @@ async function testApiKey(key) {
   resultSpan.textContent = 'Testing...';
   
   try {
-    const model = document.getElementById('model-picker').value || 'gemini-3-flash-preview';
+    const model = document.getElementById('model-picker').value || DEFAULT_GEMINI_MODEL;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     
     const response = await fetch(url, {

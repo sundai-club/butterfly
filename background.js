@@ -1,5 +1,17 @@
 // background.js - Handles Gemini API requests
 
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const MODEL_FALLBACKS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+const MODEL_ALIASES = {
+  'gemini-3-pro-preview': DEFAULT_GEMINI_MODEL
+};
+const DEFAULT_ENABLED_PLATFORMS = {
+  linkedin: true,
+  twitter: false,
+  producthunt: true,
+  reddit: true
+};
+
 // Load slop lists
 let slopWords = [];
 let slopBigrams = [];
@@ -42,18 +54,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Get API key, model, custom prompts, endWithQuestion, commentLength, tone, and platform settings from storage
     chrome.storage.sync.get(['geminiApiKey', 'geminiModel', 'customPrompts', 'endWithQuestion', 'commentLength', 'enabledPlatforms', 'commentTone'], (result) => {
       const apiKey = result.geminiApiKey;
-      const model = result.geminiModel || 'gemini-3-flash-preview';
+      const model = normalizeGeminiModel(result.geminiModel);
       const customPrompts = result.customPrompts || {};
       const endWithQuestion = result.endWithQuestion || false;
       const commentLength = result.commentLength !== undefined ? result.commentLength : 1; // Default to medium
       const commentTone = result.commentTone || 'none';
       
       // Check if platform is enabled
-      const enabledPlatforms = result.enabledPlatforms || {
-        linkedin: true,
-        twitter: false,
-        producthunt: true,
-        reddit: true
+      const enabledPlatforms = {
+        ...DEFAULT_ENABLED_PLATFORMS,
+        ...(result.enabledPlatforms || {})
       };
       
       if (!enabledPlatforms[site]) {
@@ -132,8 +142,26 @@ function getSlopWordsInstruction() {
   return instruction;
 }
 
-// Wrapper to capture debug info
-let lastDebugPrompt = '';
+function normalizeGeminiModel(model) {
+  const trimmed = typeof model === 'string' ? model.trim() : '';
+  if (!trimmed) return DEFAULT_GEMINI_MODEL;
+  return MODEL_ALIASES[trimmed] || trimmed;
+}
+
+function getModelsToTry(selectedModel) {
+  const normalized = normalizeGeminiModel(selectedModel);
+  return [normalized, ...MODEL_FALLBACKS].filter((model, index, models) => model && models.indexOf(model) === index);
+}
+
+function isModelUnavailableError(error) {
+  if (!error) return false;
+  const message = String(error.message || error).toLowerCase();
+  return error.status === 404 ||
+    message.includes('not found') ||
+    message.includes('not supported for generatecontent') ||
+    message.includes('deprecated') ||
+    message.includes('shut down');
+}
 
 function getToneInstruction(commentTone) {
   const toneInstructions = {
@@ -161,7 +189,26 @@ function getToneInstruction(commentTone) {
 }
 
 // Generate multiple suggestions in a single API call
-async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = 'gemini-3-flash-preview', refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
+async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, apiKey, model = DEFAULT_GEMINI_MODEL, refinement = '', currentComment = '', customPrompts = {}, endWithQuestion = false, commentLength = 1, commentTone = 'none') {
+  const modelsToTry = getModelsToTry(model);
+  let lastError;
+
+  for (const modelToTry of modelsToTry) {
+    try {
+      return await fetchGeminiSuggestionsWithModel(site, postText, postAuthor, apiKey, modelToTry, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone);
+    } catch (error) {
+      lastError = error;
+      if (!isModelUnavailableError(error) || modelToTry === modelsToTry[modelsToTry.length - 1]) {
+        throw error;
+      }
+      console.warn(`[Butterfly] Gemini model ${modelToTry} unavailable, trying fallback model ${modelsToTry[modelsToTry.indexOf(modelToTry) + 1]}`);
+    }
+  }
+
+  throw lastError || new Error('No Gemini model available');
+}
+
+async function fetchGeminiSuggestionsWithModel(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   console.log('[Butterfly] Making single API call for 4 variants with model:', model, 'for site:', site);
@@ -230,7 +277,7 @@ ${refinement}
 
   // Build the full prompt requesting 4 variants
   let prompt = basePrompt + '\n\n' + mainInstruction;
-  prompt += '\n\nIMPORTANT: Generate exactly 4 different comment variants. Each should be unique and varied in style while following the instructions. Format your response as a numbered list:\n1. [first comment]\n2. [second comment]\n3. [third comment]\n4. [fourth comment]';
+  prompt += '\n\nIMPORTANT: Generate exactly 4 different comment variants. Each should be unique and varied in style while following the instructions. Return only JSON matching this shape: {"suggestions":["first comment","second comment","third comment","fourth comment"]}. Do not include markdown, numbering, or explanations.';
   
   // Add slop words avoidance
   prompt += getSlopWordsInstruction();
@@ -255,11 +302,23 @@ ${refinement}
   
   // Log the full prompt for debugging
   console.log('[Butterfly] Executing prompt for 4 variants:', prompt);
-  lastDebugPrompt = prompt;
   
   try {
     const body = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: {
+          type: 'object',
+          properties: {
+            suggestions: {
+              type: 'array',
+              items: { type: 'string' }
+            }
+          },
+          required: ['suggestions']
+        }
+      }
     });
     
     const res = await fetch(url, {
@@ -288,45 +347,87 @@ ${refinement}
           errorMessage = `Error code: ${data.error.code}`;
         }
       }
-      throw new Error(errorMessage);
+      const error = new Error(errorMessage);
+      error.status = res.status;
+      throw error;
     }
     
     const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('[Butterfly] API response received, parsing variants');
     
-    // Parse the numbered list response
-    const suggestions = [];
-    const lines = responseText.split('\n');
-    
-    for (const line of lines) {
-      // Match lines that start with a number followed by period or parenthesis
-      const match = line.match(/^\d+[\.\)]\s*(.+)/);
-      if (match && match[1]) {
-        const suggestion = match[1].trim();
-        if (suggestion && !suggestions.includes(suggestion)) {
-          suggestions.push(suggestion);
-        }
-      }
-    }
-    
-    // If we couldn't parse numbered format, try splitting by double newlines as fallback
-    if (suggestions.length === 0) {
-      const parts = responseText.split(/\n\n+/).filter(s => s.trim());
-      for (const part of parts) {
-        // Remove any numbering at the start
-        const cleaned = part.replace(/^\d+[\.\)]\s*/, '').trim();
-        if (cleaned && !suggestions.includes(cleaned)) {
-          suggestions.push(cleaned);
-        }
-      }
-    }
+    const suggestions = parseGeminiSuggestions(responseText);
     
     console.log('[Butterfly] Parsed', suggestions.length, 'suggestions from response');
-    console.log('[Butterfly] Returning suggestions object:', { suggestions, debugPrompt: lastDebugPrompt });
-    return { suggestions, debugPrompt: lastDebugPrompt };
+    console.log('[Butterfly] Returning suggestions object:', { suggestions, debugPrompt: prompt });
+    return { suggestions, debugPrompt: prompt, model };
     
   } catch (error) {
     console.error('[Butterfly] Error generating suggestions:', error);
     throw error;
+  }
+}
+
+function parseGeminiSuggestions(responseText) {
+  const text = (responseText || '').trim();
+  if (!text) return [];
+
+  const jsonText = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const parsedSuggestions = parseSuggestionsFromJson(jsonText);
+  if (parsedSuggestions.length > 0) return parsedSuggestions;
+
+  const suggestions = [];
+  const lines = text.split('\n');
+
+  for (const line of lines) {
+    const match = line.match(/^\s*(?:\d+[\.\)]|[-*])\s*(.+)/);
+    if (match && match[1]) {
+      addUniqueSuggestion(suggestions, match[1]);
+    }
+  }
+
+  if (suggestions.length === 0) {
+    const parts = text.split(/\n\n+/).filter(s => s.trim());
+    for (const part of parts) {
+      addUniqueSuggestion(suggestions, part.replace(/^\s*\d+[\.\)]\s*/, ''));
+    }
+  }
+
+  if (suggestions.length === 0) {
+    addUniqueSuggestion(suggestions, text);
+  }
+
+  return suggestions;
+}
+
+function parseSuggestionsFromJson(jsonText) {
+  try {
+    const parsed = JSON.parse(jsonText);
+    if (Array.isArray(parsed)) {
+      return normalizeSuggestions(parsed);
+    }
+    if (parsed && typeof parsed === 'object') {
+      return normalizeSuggestions(parsed.suggestions || parsed.comments || parsed.variants || []);
+    }
+  } catch (error) {
+    return [];
+  }
+  return [];
+}
+
+function normalizeSuggestions(values) {
+  const suggestions = [];
+  if (!Array.isArray(values)) return suggestions;
+  for (const value of values) {
+    addUniqueSuggestion(suggestions, value);
+  }
+  return suggestions;
+}
+
+function addUniqueSuggestion(suggestions, value) {
+  const suggestion = String(value || '')
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  if (suggestion && !suggestions.includes(suggestion)) {
+    suggestions.push(suggestion);
   }
 }

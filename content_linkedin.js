@@ -49,43 +49,104 @@ function showInlineStatus(uiContainer, message) {
   uiContainer.appendChild(status);
 }
 
+function cleanLinkedInText(value) {
+  return (value || '')
+    .replace(/\s*\n\s*/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
+function getElementText(element) {
+  return element ? cleanLinkedInText(element.innerText || element.textContent || '') : '';
+}
+
+function findFirstWithText(root, selectors) {
+  if (!root) return null;
+  for (const selector of selectors) {
+    const candidates = root.querySelectorAll(selector);
+    for (const candidate of candidates) {
+      if (getElementText(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function findReplyContext(commentBox) {
+  const replyBox = commentBox.closest('.comments-comment-box--reply, [class*="comment-box"][class*="reply"]');
+  if (!replyBox) return null;
+
+  const directComment = replyBox.closest('article.comments-comment-entity, .comments-comment-entity');
+  if (directComment) return directComment;
+
+  let node = replyBox.previousElementSibling;
+  while (node) {
+    if (node.matches && node.matches('article.comments-comment-entity, .comments-comment-entity')) {
+      return node;
+    }
+    const nestedComment = node.querySelector && node.querySelector('article.comments-comment-entity, .comments-comment-entity');
+    if (nestedComment) return nestedComment;
+    node = node.previousElementSibling;
+  }
+
+  return null;
+}
+
 // New function to extract both post text and author
 function extractPostInfo(postElement, commentBox) {
   // Check if this is a reply to a comment
   if (commentBox) {
-    // Check if this is a reply box
-    const replyBox = commentBox.closest('.comments-comment-box--reply');
-    if (replyBox) {
-      // Find the parent comment article that contains this reply box
-      const parentArticle = replyBox.closest('article.comments-comment-entity');
-      
-      if (parentArticle) {
-        // Extract parent comment text - look for the main content span
-        const commentTextElem = parentArticle.querySelector('.comments-comment-item__main-content');
-        
-        // Extract parent comment author - look in the meta description
-        const commentAuthorElem = parentArticle.querySelector('.comments-comment-meta__description-title');
-        
-        if (commentTextElem || commentAuthorElem) {
-          const postText = commentTextElem ? commentTextElem.innerText.trim() : '';
-          const postAuthor = commentAuthorElem ? commentAuthorElem.innerText.trim() : '';
-          console.log('[Butterfly] Replying to comment - Author:', postAuthor, 'Text:', postText);
-          return { postText, postAuthor };
-        }
+    const parentArticle = findReplyContext(commentBox);
+    if (parentArticle) {
+      const commentTextElem = findFirstWithText(parentArticle, [
+        '.comments-comment-item__main-content',
+        '.comments-comment-item__inline-show-more-text',
+        '.comments-comment-item-content-body',
+        '[class*="comments-comment-item"][class*="content"]',
+        '.feed-shared-inline-show-more-text'
+      ]);
+
+      const commentAuthorElem = findFirstWithText(parentArticle, [
+        '.comments-comment-meta__description-title',
+        '.comments-comment-meta__actor-name',
+        '.comments-post-meta__name',
+        'a[href*="/in/"] span[aria-hidden="true"]',
+        'a[href*="/company/"] span[aria-hidden="true"]'
+      ]);
+
+      if (commentTextElem || commentAuthorElem) {
+        const postText = getElementText(commentTextElem);
+        const postAuthor = getElementText(commentAuthorElem);
+        console.log('[Butterfly] Replying to comment - Author:', postAuthor, 'Text:', postText);
+        return { postText, postAuthor };
       }
     }
   }
   
   // Fallback to main post extraction
   // Try to extract the main post text
-  const mainTextElem = postElement.querySelector('[data-ad-preview="message"]') || postElement.querySelector('.feed-shared-update-v2__description');
-  const postText = mainTextElem ? mainTextElem.innerText.trim() : '';
+  const mainTextElem = findFirstWithText(postElement, [
+    '[data-ad-preview="message"]',
+    '.feed-shared-update-v2__description',
+    '.update-components-text',
+    '.feed-shared-inline-show-more-text',
+    '.update-components-update-v2__commentary',
+    '[dir="ltr"]'
+  ]);
+  const postText = getElementText(mainTextElem);
 
   // Try multiple selectors for author name
-  let authorElem = postElement.querySelector('.feed-shared-actor__name')
-    || postElement.querySelector('.update-components-actor__name')
-    || postElement.querySelector('.feed-shared-actor__meta a')
-    || postElement.querySelector('.update-components-actor__meta a');
+  let authorElem = findFirstWithText(postElement, [
+    '.feed-shared-actor__name',
+    '.update-components-actor__name',
+    '.feed-shared-actor__meta a',
+    '.update-components-actor__meta a',
+    '.update-components-actor__title span[aria-hidden="true"]',
+    '.feed-shared-actor__title span[aria-hidden="true"]',
+    'a[href*="/in/"] span[aria-hidden="true"]',
+    'a[href*="/company/"] span[aria-hidden="true"]'
+  ]);
 
   // Fallback: try first anchor or span in likely header containers
   if (!authorElem) {
@@ -98,7 +159,7 @@ function extractPostInfo(postElement, commentBox) {
   // Debug: log all possible candidates
   // const candidates = postElement.querySelectorAll('.feed-shared-actor__name, .update-components-actor__name, .feed-shared-actor__meta a, .update-components-actor__meta a, .feed-shared-actor a, .update-components-actor a, a, span');
   // console.log('[Butterfly] Author candidates:', candidates);
-  const postAuthor = authorElem ? authorElem.innerText.trim() : '';
+  const postAuthor = getElementText(authorElem);
   console.log('[Butterfly] Selected author:', postAuthor);
   return { postText, postAuthor };
 }
@@ -259,21 +320,104 @@ const butterflyLastFillTime = new WeakMap();
   const COMMENT_SELECTORS = [
     '.comments-comment-box__editor',
     '.ql-editor[contenteditable="true"]',
+    '[data-lexical-editor="true"][contenteditable="true"]',
+    '.comments-comment-box [contenteditable="true"]',
+    '.comments-comment-texteditor [contenteditable="true"]',
+    'div[role="textbox"][contenteditable="true"][aria-label*="comment" i]',
+    'div[role="textbox"][contenteditable="true"][aria-label*="reply" i]',
+    'div[contenteditable="true"][aria-label*="Add a comment" i]',
+    'div[contenteditable="true"][aria-label*="Add a reply" i]',
     'textarea[aria-label="Add a comment…"]',
     'textarea[aria-label="Add a comment..."]',
+    'textarea[aria-label*="Add a comment" i]',
+    'textarea[aria-label*="Add a reply" i]',
     'textarea[name="comment"]',
   ];
 
   // Helper to find the post element from a comment box
   function findPostElementFromCommentBox(box) {
-    // Try to find the closest LinkedIn post container
-    return box.closest('.feed-shared-update-v2, .scaffold-finite-scroll__content, .update-components-update, article');
+    return box.closest('.feed-shared-update-v2, .update-components-update, [data-urn^="urn:li:activity"], [data-id^="urn:li:activity"]')
+      || box.closest('article:not(.comments-comment-entity), [role="article"]:not(.comments-comment-entity)')
+      || document.querySelector('main');
+  }
+
+  function isLinkedInCommentBox(box) {
+    if (!box || box.dataset.butterflyUiContainer === 'true') return false;
+    if (box.closest('.butterfly-ui-container')) return false;
+    if (box.closest('.comments-comment-box, .comments-comment-texteditor, form.comments-comment-box')) return true;
+
+    const label = [
+      box.getAttribute('aria-label'),
+      box.getAttribute('data-placeholder'),
+      box.getAttribute('placeholder')
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return label.includes('comment') || label.includes('reply');
+  }
+
+  function setLexicalEditorValue(box, value) {
+    try {
+      const editor = box.__lexicalEditor;
+      if (!editor || typeof editor.parseEditorState !== 'function' || typeof editor.setEditorState !== 'function') {
+        return false;
+      }
+
+      const editorState = editor.parseEditorState(JSON.stringify({
+        root: {
+          children: [{
+            children: [{ detail: 0, format: 0, mode: 'normal', text: value, type: 'text', version: 1 }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'paragraph',
+            version: 1
+          }],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          type: 'root',
+          version: 1
+        }
+      }));
+      editor.setEditorState(editorState);
+      return true;
+    } catch (error) {
+      console.warn('[Butterfly LinkedIn] Failed to set Lexical editor state, falling back to DOM insertion:', error);
+      return false;
+    }
+  }
+
+  function setContentEditableValue(box, value) {
+    if (setLexicalEditorValue(box, value)) {
+      box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+      return;
+    }
+
+    box.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(box);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const inserted = document.execCommand && document.execCommand('insertText', false, value);
+    if (!inserted || cleanLinkedInText(box.innerText || box.textContent) !== cleanLinkedInText(value)) {
+      box.textContent = value;
+    }
+
+    selection.removeAllRanges();
+    const endRange = document.createRange();
+    endRange.selectNodeContents(box);
+    endRange.collapse(false);
+    selection.addRange(endRange);
+
+    box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+    box.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function setCommentBoxValue(box, value) {
     if (box.isContentEditable) {
-      box.innerText = value;
-      box.dispatchEvent(new Event('input', { bubbles: true }));
+      setContentEditableValue(box, value);
     } else {
       box.value = value;
       box.dispatchEvent(new Event('input', { bubbles: true }));
@@ -281,7 +425,7 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   async function performInitialAutoSuggestion(box, postElement, suggestBtn) {
-    const isEmpty = (box.isContentEditable && box.innerText.trim() === '') || 
+    const isEmpty = (box.isContentEditable && getElementText(box) === '') ||
                    (!box.isContentEditable && box.value.trim() === '');
     
     if (isEmpty && !box.dataset.butterflyAutoSuggested) {
@@ -460,7 +604,7 @@ const butterflyLastFillTime = new WeakMap();
       }
       
       // Get the current value of the comment box
-      let currentComment = box.isContentEditable ? box.innerText : box.value;
+      let currentComment = box.isContentEditable ? getElementText(box) : box.value;
       const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
       if (result.error) {
@@ -551,6 +695,7 @@ const butterflyLastFillTime = new WeakMap();
     for (const sel of COMMENT_SELECTORS) {
       const boxes = document.querySelectorAll(sel);
       for (const box of boxes) {
+        if (!isLinkedInCommentBox(box)) continue;
         const now = Date.now();
         const last = butterflyLastFillTime.get(box) || 0;
         if (now - last >= 1000) {
