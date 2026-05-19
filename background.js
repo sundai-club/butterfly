@@ -3,6 +3,7 @@
 const DEFAULT_MODEL_MODE = 'flash';
 const MODEL_CHAINS = {
   flash: [
+    'gemini-3.5-flash',
     'gemini-3.1-flash-lite-preview',
     'gemini-3-flash-preview',
     'gemini-2.5-flash',
