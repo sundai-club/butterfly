@@ -95,6 +95,45 @@ function showInlineStatus(uiContainer, message) {
   uiContainer.appendChild(status);
 }
 
+let twitterEnabled = false;
+
+function removeTwitterUI() {
+  document.querySelectorAll('.butterfly-ui-container, .butterfly-variants-container, .butterfly-inline-status').forEach(element => {
+    element.remove();
+  });
+  document.querySelectorAll('[data-butterfly-twitter-injected]').forEach(element => {
+    delete element.dataset.butterflyTwitterInjected;
+  });
+  document.querySelectorAll('[data-butterfly-auto-suggested]').forEach(element => {
+    delete element.dataset.butterflyAutoSuggested;
+  });
+}
+
+function refreshTwitterEnabled() {
+  if (!isExtensionContextValid()) {
+    twitterEnabled = false;
+    return;
+  }
+  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+    if (chrome.runtime.lastError) {
+      if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('context invalidated')) {
+        showContextInvalidatedMessage();
+      }
+      return;
+    }
+    const enabledPlatforms = result.enabledPlatforms || {
+      linkedin: true,
+      twitter: false,
+      producthunt: true,
+      reddit: true
+    };
+    twitterEnabled = enabledPlatforms.twitter === true;
+    if (!twitterEnabled) {
+      removeTwitterUI();
+    }
+  });
+}
+
 function setCommentBoxValue(commentBox, value) {
   if (commentBox.isContentEditable) {
     // Focus first to activate the field
@@ -229,6 +268,7 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
     console.log('[Butterfly Twitter] Extension context not valid, skipping auto-suggestion.');
     return;
   }
+  if (!twitterEnabled) return;
   
   const isEmpty = (commentBox.isContentEditable && commentBox.innerText.trim() === '') ||
                  (!commentBox.isContentEditable && commentBox.value.trim() === '');
@@ -253,7 +293,8 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
     } else if (result.disabled) {
-      showInlineStatus(uiContainer, 'Disabled for Twitter/X');
+      removeTwitterUI();
+      return;
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly Twitter] Auto-suggestion applied.');
@@ -433,6 +474,10 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, sug
       alert('Extension was updated. Please refresh the page to continue using Butterfly.');
       return;
     }
+    if (!twitterEnabled) {
+      removeTwitterUI();
+      return;
+    }
 
     const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
     refineBtn.disabled = true;
@@ -459,7 +504,8 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, sug
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
     } else if (result.disabled) {
-      showInlineStatus(uiContainer, 'Disabled for Twitter/X');
+      removeTwitterUI();
+      return;
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addVariantsDropdown(commentBox, result.suggestions, 0);
@@ -476,6 +522,7 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, sug
 }
 
 function injectUI(commentBox, tweetElement) {
+  if (!twitterEnabled) return;
   let uiContainer = commentBox.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + commentBox.dataset.butterflyId + '"]');
   if (uiContainer) {
     return;
@@ -504,6 +551,10 @@ function injectUI(commentBox, tweetElement) {
       alert('Extension was updated. Please refresh the page to continue using Butterfly.');
       return;
     }
+    if (!twitterEnabled) {
+      removeTwitterUI();
+      return;
+    }
 
     const originalText = suggestBtn.textContent;
     suggestBtn.disabled = true;
@@ -515,7 +566,8 @@ function injectUI(commentBox, tweetElement) {
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
     } else if (result.disabled) {
-      showInlineStatus(uiContainer, 'Disabled for Twitter/X');
+      removeTwitterUI();
+      return;
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addInteractionButtons(commentBox, tweetElement, suggestBtn, result.suggestions);
@@ -603,12 +655,15 @@ function scanAndInjectTwitter() {
     const enabledPlatforms = result.enabledPlatforms || {
       linkedin: true,
       twitter: false,
-      producthunt: true
+      producthunt: true,
+      reddit: true
     };
+    twitterEnabled = enabledPlatforms.twitter === true;
     
     // Only proceed if Twitter is enabled
-    if (!enabledPlatforms.twitter) {
+    if (!twitterEnabled) {
       console.log('[Butterfly Twitter] Extension is disabled for Twitter/X');
+      removeTwitterUI();
       return;
     }
     
@@ -685,11 +740,13 @@ window.addEventListener('twitterLocationChange', twitterOnUrlChange);
 
 // Initial scan and observer setup
 setTimeout(() => {
+  refreshTwitterEnabled();
   scanAndInjectTwitter();
   twitterObserveFeed();
 }, 1000);
 
 // Periodic scan fallback
+setInterval(refreshTwitterEnabled, 5000);
 setInterval(() => {
   scanAndInjectTwitter();
 }, 3000);

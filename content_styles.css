@@ -1,0 +1,115 @@
+/* === Butterfly Content Script Styles === */
+.butterfly-container {
+  background: #f3f6fb;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  margin: 10px 0 0 0;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.butterfly-ui-container {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+.butterfly-btn {
+  background-color: SlateBlue;
+  color: white;
+  padding: 6px 12px;
+  border: 1px solid #40528A;
+  border-radius: 5px;
+  margin-left: 5px;
+  margin-top: 5px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.butterfly-btn:hover {
+  background-color: #5A6AAD;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.butterfly-btn:disabled {
+  background-color: #9FA8DA;
+  color: #E8EAF6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.butterfly-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.butterfly-textarea {
+  width: 100%;
+  min-height: 40px;
+  resize: vertical;
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #b0b8c1;
+  font-size: 14px;
+}
+
+.butterfly-generate,
+.butterfly-post {
+  margin-top: 2px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  background: #0a66c2;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.butterfly-generate {
+  background: #0a66c2;
+}
+
+.butterfly-post {
+  background: #34a853;
+}
+
+.butterfly-regenerate-btn {
+  margin-left: 0px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #8A2BE2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+.butterfly-refine-btn {
+  margin-left: 8px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #4B0082;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+.butterfly-post-btn {
+  margin-left: 8px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #FF6347;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}

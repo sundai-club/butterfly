@@ -21,6 +21,7 @@ FILES=(
   popup.html
   popup.js
   styles.css
+  content_styles.css
   icon128.png
   content_linkedin.js
   content_twitter.js

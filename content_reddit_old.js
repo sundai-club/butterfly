@@ -131,6 +131,18 @@ async function getGeminiSuggestion(postText, postAuthor, refinement = '', curren
 const butterflyLastFillTime = new WeakMap();
 let redditEnabled = true;
 
+function removeRedditUI() {
+  document.querySelectorAll('.butterfly-ui-container, .butterfly-variants-container, .butterfly-inline-status').forEach(element => {
+    element.remove();
+  });
+  document.querySelectorAll('[data-butterfly-injected]').forEach(element => {
+    delete element.dataset.butterflyInjected;
+  });
+  document.querySelectorAll('[data-butterfly-auto-suggested]').forEach(element => {
+    delete element.dataset.butterflyAutoSuggested;
+  });
+}
+
 function refreshRedditEnabled() {
   if (!isExtensionContextValid()) {
     redditEnabled = false;
@@ -150,6 +162,9 @@ function refreshRedditEnabled() {
       reddit: true
     };
     redditEnabled = enabledPlatforms.reddit !== false;
+    if (!redditEnabled) {
+      removeRedditUI();
+    }
   });
 }
 
@@ -176,7 +191,8 @@ function refreshRedditEnabled() {
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
       } else if (result.disabled) {
-        showInlineStatus(uiContainer, 'Disabled for Reddit');
+        removeRedditUI();
+        return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addInteractionButtons(box, suggestBtn, result.suggestions);
@@ -287,7 +303,7 @@ function refreshRedditEnabled() {
       e.stopPropagation();
       
       if (!redditEnabled) {
-        showInlineStatus(uiContainer, 'Disabled for Reddit');
+        removeRedditUI();
         return;
       }
       
@@ -320,7 +336,8 @@ function refreshRedditEnabled() {
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
       } else if (result.disabled) {
-        showInlineStatus(uiContainer, 'Disabled for Reddit');
+        removeRedditUI();
+        return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addVariantsDropdown(box, result.suggestions, 0);
@@ -337,6 +354,7 @@ function refreshRedditEnabled() {
   }
   
   function injectUI(box) {
+    if (!redditEnabled) return;
     const form = box.closest('form.usertext');
     if (!form) return;
     
@@ -389,7 +407,7 @@ function refreshRedditEnabled() {
       e.stopPropagation();
       
       if (!redditEnabled) {
-        showInlineStatus(uiContainer, 'Disabled for Reddit');
+        removeRedditUI();
         return;
       }
       
@@ -407,7 +425,8 @@ function refreshRedditEnabled() {
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
       } else if (result.disabled) {
-        showInlineStatus(uiContainer, 'Disabled for Reddit');
+        removeRedditUI();
+        return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addInteractionButtons(box, suggestBtn, result.suggestions);
@@ -422,7 +441,10 @@ function refreshRedditEnabled() {
   
   async function scanAndFill() {
     if (!isExtensionContextValid()) return;
-    if (!redditEnabled) return;
+    if (!redditEnabled) {
+      removeRedditUI();
+      return;
+    }
     const boxes = document.querySelectorAll(COMMENT_SELECTOR);
     for (const box of boxes) {
       const now = Date.now();

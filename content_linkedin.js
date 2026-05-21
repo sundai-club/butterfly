@@ -49,6 +49,45 @@ function showInlineStatus(uiContainer, message) {
   uiContainer.appendChild(status);
 }
 
+let linkedinEnabled = true;
+
+function removeLinkedInUI() {
+  document.querySelectorAll('.butterfly-ui-container, .butterfly-variants-container, .butterfly-inline-status').forEach(element => {
+    element.remove();
+  });
+  document.querySelectorAll('[data-butterfly-injected]').forEach(element => {
+    delete element.dataset.butterflyInjected;
+  });
+  document.querySelectorAll('[data-butterfly-auto-suggested]').forEach(element => {
+    delete element.dataset.butterflyAutoSuggested;
+  });
+}
+
+function refreshLinkedInEnabled() {
+  if (!isExtensionContextValid()) {
+    linkedinEnabled = false;
+    return;
+  }
+  chrome.storage.sync.get(['enabledPlatforms'], (result) => {
+    if (chrome.runtime.lastError) {
+      if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('context invalidated')) {
+        showContextInvalidatedMessage();
+      }
+      return;
+    }
+    const enabledPlatforms = result.enabledPlatforms || {
+      linkedin: true,
+      twitter: false,
+      producthunt: true,
+      reddit: true
+    };
+    linkedinEnabled = enabledPlatforms.linkedin !== false;
+    if (!linkedinEnabled) {
+      removeLinkedInUI();
+    }
+  });
+}
+
 function cleanLinkedInText(value) {
   return (value || '')
     .replace(/\s*\n\s*/g, '\n')
@@ -381,12 +420,15 @@ function scanAndInject() {
       const enabledPlatforms = result.enabledPlatforms || {
         linkedin: true,
         twitter: false,
-        producthunt: true
+        producthunt: true,
+        reddit: true
       };
+      linkedinEnabled = enabledPlatforms.linkedin !== false;
       
       // Only proceed if LinkedIn is enabled
-      if (!enabledPlatforms.linkedin) {
+      if (!linkedinEnabled) {
         console.log('[Butterfly LinkedIn] Extension is disabled for LinkedIn');
+        removeLinkedInUI();
         return;
       }
       
@@ -442,12 +484,18 @@ window.addEventListener('locationchange', onUrlChange);
 // Initial scan and observer setup
 scanAndInject();
 observeFeed();
+refreshLinkedInEnabled();
+setInterval(refreshLinkedInEnabled, 5000);
 // Fallback: periodic scan in case observer misses something
 const scanInterval = setInterval(() => {
   // Stop scanning if extension context is invalidated
   if (!isExtensionContextValid()) {
     clearInterval(scanInterval);
     console.log('[Butterfly LinkedIn] Stopping periodic scan due to context invalidation');
+    return;
+  }
+  if (!linkedinEnabled) {
+    removeLinkedInUI();
     return;
   }
   scanAndInject();
@@ -607,6 +655,7 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   async function performInitialAutoSuggestion(box, postElement, suggestBtn) {
+    if (!linkedinEnabled) return;
     const isEmpty = (box.isContentEditable && getElementText(box) === '') ||
                    (!box.isContentEditable && box.value.trim() === '');
     
@@ -631,7 +680,8 @@ const butterflyLastFillTime = new WeakMap();
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
       } else if (result.disabled) {
-        showInlineStatus(uiContainer, 'Disabled for LinkedIn');
+        removeLinkedInUI();
+        return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         // Use the first suggestion as the default
         setCommentBoxValue(box, result.suggestions[0]);
@@ -650,10 +700,7 @@ const butterflyLastFillTime = new WeakMap();
 
   function addVariantsDropdown(box, suggestions, currentIndex = 0) {
     // Remove existing dropdown if any
-    const existingDropdown = box.parentElement.querySelector('.butterfly-variants-container');
-    if (existingDropdown) {
-      existingDropdown.remove();
-    }
+    document.querySelectorAll('.butterfly-variants-container, .butterfly-variants-dropdown').forEach(element => element.remove());
     
     if (!suggestions || suggestions.length <= 1) return;
     
@@ -671,7 +718,7 @@ const butterflyLastFillTime = new WeakMap();
     // Create dropdown menu
     const dropdown = document.createElement('div');
     dropdown.className = 'butterfly-variants-dropdown';
-    dropdown.style.cssText = 'display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px; min-width: 300px; max-width: 400px; z-index: 1000;';
+    dropdown.style.cssText = 'display: none; position: fixed; background: white; color: #24292e; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 350px; max-width: calc(100vw - 20px); z-index: 2147483647; max-height: 300px; overflow-y: auto;';
     
     // Add each variant to dropdown
     suggestions.forEach((suggestion, index) => {
@@ -719,18 +766,43 @@ const butterflyLastFillTime = new WeakMap();
     variantsBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+
+      if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+
+        const btnRect = variantsBtn.getBoundingClientRect();
+        const dropdownRect = dropdown.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        const gap = 8;
+
+        if (btnRect.top >= dropdownRect.height + gap) {
+          dropdown.style.top = 'auto';
+          dropdown.style.bottom = (viewportHeight - btnRect.top + gap) + 'px';
+        } else {
+          dropdown.style.top = Math.max(gap, Math.min(btnRect.bottom + gap, viewportHeight - dropdownRect.height - gap)) + 'px';
+          dropdown.style.bottom = 'auto';
+        }
+
+        let left = btnRect.left;
+        if (left + dropdownRect.width > viewportWidth - gap) {
+          left = viewportWidth - dropdownRect.width - gap;
+        }
+        dropdown.style.left = Math.max(gap, left) + 'px';
+      } else {
+        dropdown.style.display = 'none';
+      }
     };
     
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
-      if (!variantsContainer.contains(e.target)) {
+      if (!variantsContainer.contains(e.target) && !dropdown.contains(e.target)) {
         dropdown.style.display = 'none';
       }
     });
     
     variantsContainer.appendChild(variantsBtn);
-    variantsContainer.appendChild(dropdown);
+    document.body.appendChild(dropdown);
     
     // Insert after the Refine button or after the comment box
     const refineBtn = box.parentElement.querySelector('.butterfly-refine-btn');
@@ -766,6 +838,10 @@ const butterflyLastFillTime = new WeakMap();
         alert('Extension was updated. Please refresh the page to continue using Butterfly.');
         return;
       }
+      if (!linkedinEnabled) {
+        removeLinkedInUI();
+        return;
+      }
       
       const originalSuggestText = suggestBtnInstance ? suggestBtnInstance.textContent : 'Suggest Comment ✨';
       refineBtn.disabled = true;
@@ -794,7 +870,8 @@ const butterflyLastFillTime = new WeakMap();
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
       } else if (result.disabled) {
-        showInlineStatus(uiContainer, 'Disabled for LinkedIn');
+        removeLinkedInUI();
+        return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addVariantsDropdown(box, result.suggestions, 0);
@@ -811,6 +888,7 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   function injectUI(box, postElement) {
+    if (!linkedinEnabled) return;
     const composer = findCommentComposer(box);
     if (!composer) return;
 
@@ -857,6 +935,10 @@ const butterflyLastFillTime = new WeakMap();
         alert('Extension was updated. Please refresh the page to continue using Butterfly.');
         return;
       }
+      if (!linkedinEnabled) {
+        removeLinkedInUI();
+        return;
+      }
       
       const originalText = suggestBtn.textContent;
       suggestBtn.disabled = true;
@@ -868,7 +950,8 @@ const butterflyLastFillTime = new WeakMap();
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage);
       } else if (result.disabled) {
-        showInlineStatus(uiContainer, 'Disabled for LinkedIn');
+        removeLinkedInUI();
+        return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         setCommentBoxValue(box, result.suggestions[0]);
         addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
@@ -883,6 +966,10 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   async function scanAndFill() {
+    if (!linkedinEnabled) {
+      removeLinkedInUI();
+      return;
+    }
     // Leading-edge throttle per comment box (1s)
     const seenBoxes = new Set();
     const seenComposers = new Set();

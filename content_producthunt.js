@@ -59,6 +59,9 @@ function refreshProductHuntEnabled() {
       reddit: true
     };
     producthuntEnabled = enabledPlatforms.producthunt !== false;
+    if (!producthuntEnabled) {
+      removeProductHuntUI();
+    }
   });
 }
 
@@ -73,6 +76,15 @@ function showInlineStatus(uiContainer, message) {
   status.title = 'Enable Product Hunt in Butterfly settings: click the 🦋 icon, check "Product Hunt", then try again.';
   status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
   uiContainer.appendChild(status);
+}
+
+function removeProductHuntUI() {
+  document.querySelectorAll('.butterfly-ui-container, .butterfly-variants-container, .butterfly-inline-status').forEach(element => {
+    element.remove();
+  });
+  document.querySelectorAll('[data-butterfly-ph-injected]').forEach(editor => {
+    delete editor.dataset.butterflyPhInjected;
+  });
 }
 
 function injectPHButtonStyles() {
@@ -258,7 +270,8 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
     } else if (result.disabled) {
-      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      removeProductHuntUI();
+      return;
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       console.log('[Butterfly PH] Auto-suggestion applied.');
@@ -275,6 +288,7 @@ async function performInitialAutoSuggestion(commentBox, postElement, suggestBtn)
 }
 
 function injectUI(commentBox, postElement) {
+  if (!producthuntEnabled) return;
   let uiContainer = commentBox.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + commentBox.dataset.butterflyId + '"]');
   if (uiContainer) {
     return; // UI already injected for this specific comment box
@@ -299,16 +313,12 @@ function injectUI(commentBox, postElement) {
   // For TipTap, the commentBox is the editor itself. Its parent is likely the form control wrapper.
   commentBox.parentElement.insertBefore(uiContainer, commentBox.nextSibling);
   
-  if (!producthuntEnabled) {
-    showInlineStatus(uiContainer, 'Disabled for Product Hunt');
-  }
-
   suggestBtn.onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (!producthuntEnabled) {
-      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      removeProductHuntUI();
       return;
     }
     
@@ -322,7 +332,8 @@ function injectUI(commentBox, postElement) {
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
     } else if (result.disabled) {
-      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      removeProductHuntUI();
+      return;
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addInteractionButtons(commentBox, postElement, suggestBtn, result.suggestions);
@@ -450,7 +461,7 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance, sugg
     e.stopPropagation();
     
     if (!producthuntEnabled) {
-      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      removeProductHuntUI();
       return;
     }
     
@@ -480,7 +491,8 @@ function addInteractionButtons(commentBox, postElement, suggestBtnInstance, sugg
       const errorMessage = `[Error: ${result.error}]`;
       setCommentBoxValue(commentBox, errorMessage);
     } else if (result.disabled) {
-      showInlineStatus(uiContainer, 'Disabled for Product Hunt');
+      removeProductHuntUI();
+      return;
     } else if (result.suggestions && result.suggestions.length > 0) {
       setCommentBoxValue(commentBox, result.suggestions[0]);
       addVariantsDropdown(commentBox, result.suggestions, 0);
@@ -529,6 +541,10 @@ function scanAndInjectProductHunt() {
       reddit: true
     };
     producthuntEnabled = enabledPlatforms.producthunt !== false;
+    if (!producthuntEnabled) {
+      removeProductHuntUI();
+      return;
+    }
     
     // Selector for Product Hunt posts on listing pages (e.g., /posts) - this remains a general placeholder
     const postItems = document.querySelectorAll('div[class*="styles_postItem_"], article[class*="postListItem"]');

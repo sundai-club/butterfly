@@ -117,7 +117,7 @@
 }
 
 /* === Popup Theming and Modern Styles === */
-:root {
+body.butterfly-popup {
   --background: #fff;
   --foreground: #f3f6fb;
   --border: #d0d7de;
@@ -132,7 +132,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  body.butterfly-popup {
     --background: #181a1b;
     --foreground: #23272e;
     --border: #343a40;
@@ -148,7 +148,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  body.butterfly-popup {
     --background: #fff;
     --foreground: #f3f6fb;
     --border: #d0d7de;
@@ -163,7 +163,7 @@
   }
 }
 
-body,
+body.butterfly-popup,
 .popup-container {
   font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
   background: var(--background);
