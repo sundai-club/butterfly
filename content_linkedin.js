@@ -776,6 +776,40 @@ const butterflyLastFillTime = new WeakMap();
     }
   }
 
+  function nodeIsInsideElement(node, element) {
+    if (!node || !element) return false;
+    const candidate = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    return Boolean(candidate && element.contains(candidate));
+  }
+
+  function releaseComposerFocus(box) {
+    const composer = findCommentComposer(box);
+    const activeElement = document.activeElement;
+
+    if (
+      activeElement &&
+      activeElement !== document.body &&
+      (activeElement === box || (box.contains && box.contains(activeElement)) || (composer && composer.contains(activeElement)))
+    ) {
+      activeElement.blur();
+    }
+
+    const selection = window.getSelection && window.getSelection();
+    if (selection && selection.rangeCount > 0 && composer && nodeIsInsideElement(selection.anchorNode, composer)) {
+      selection.removeAllRanges();
+    }
+  }
+
+  function releaseComposerFocusAfterLinkedInUpdates(box) {
+    releaseComposerFocus(box);
+    requestAnimationFrame(() => {
+      releaseComposerFocus(box);
+      requestAnimationFrame(() => releaseComposerFocus(box));
+    });
+    setTimeout(() => releaseComposerFocus(box), 250);
+    setTimeout(() => releaseComposerFocus(box), 1000);
+  }
+
   async function performInitialAutoSuggestion(box, postElement, suggestBtn) {
     if (!linkedinEnabled) return;
     const isEmpty = (box.isContentEditable && getElementText(box) === '') ||
@@ -801,12 +835,14 @@ const butterflyLastFillTime = new WeakMap();
         // Display error message directly in the comment field
         const errorMessage = `[Error: ${result.error}]`;
         setCommentBoxValue(box, errorMessage, { avoidFocus: true });
+        releaseComposerFocusAfterLinkedInUpdates(box);
       } else if (result.disabled) {
         removeLinkedInUI();
         return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         // Use the first suggestion as the default
         setCommentBoxValue(box, result.suggestions[0], { avoidFocus: true });
+        releaseComposerFocusAfterLinkedInUpdates(box);
         console.log('[Butterfly] Auto-suggestion applied.');
         addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
         addVariantsDropdown(box, result.suggestions, 0);
