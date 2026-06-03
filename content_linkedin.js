@@ -518,10 +518,15 @@ const butterflyLastFillTime = new WeakMap();
     '.comments-comment-texteditor [contenteditable="true"]',
     '.comments-comment-texteditor__content [contenteditable="true"]',
     '.comments-comment-box-comment__text-editor [contenteditable="true"]',
+    '[componentkey^="commentBox-"] [contenteditable="true"]',
+    '[data-testid="ui-core-tiptap-text-editor-wrapper"] [contenteditable="true"]',
+    '.tiptap.ProseMirror[contenteditable="true"]',
+    '.ProseMirror[contenteditable="true"][role="textbox"]',
     'div[contenteditable="true"][data-placeholder*="comment" i]',
     'div[contenteditable="true"][data-placeholder*="reply" i]',
     'div[contenteditable="true"][aria-placeholder*="comment" i]',
     'div[contenteditable="true"][aria-placeholder*="reply" i]',
+    'div[contenteditable="true"][aria-label*="Text editor" i]',
     'div[role="textbox"][contenteditable="true"][aria-label*="comment" i]',
     'div[role="textbox"][contenteditable="true"][aria-label*="reply" i]',
     'div[contenteditable="true"][aria-label*="Add a comment" i]',
@@ -542,16 +547,45 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   function findCommentComposer(box) {
-    return box.closest('.comments-comment-box, .social-details-social-comment-box, form.comments-comment-box')
-      || box.closest('.comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor')
+    return box.closest('.comments-comment-box, .social-details-social-comment-box, form.comments-comment-box, [componentkey^="commentBox-"]')
+      || box.closest('.comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor, [data-testid="ui-core-tiptap-text-editor-wrapper"]')
       || box.parentElement;
+  }
+
+  function findUiContainerScope(box) {
+    return findCommentComposer(box) || box.parentElement || document.body;
+  }
+
+  function findUiInsertionTarget(box, composer) {
+    const editorWrapper = box.closest(
+      '[data-testid="ui-core-tiptap-text-editor-wrapper"], .comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor'
+    );
+
+    if (editorWrapper && composer.contains(editorWrapper)) {
+      return {
+        parent: editorWrapper.parentElement || composer,
+        nextSibling: editorWrapper.nextSibling
+      };
+    }
+
+    if (box.parentElement && composer.contains(box.parentElement)) {
+      return {
+        parent: box.parentElement,
+        nextSibling: box.nextSibling
+      };
+    }
+
+    return {
+      parent: composer,
+      nextSibling: null
+    };
   }
 
   function isLinkedInCommentBox(box) {
     if (!box || box.dataset.butterflyUiContainer === 'true') return false;
     if (box.closest('.butterfly-ui-container')) return false;
     if (box.closest('.share-box-feed-entry, .share-creation-state, .share-box, [data-test-modal-id="share-box"]')) return false;
-    if (box.closest('.comments-comment-box, .comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor, .social-details-social-comment-box, form.comments-comment-box')) return true;
+    if (box.closest('.comments-comment-box, .comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor, .social-details-social-comment-box, form.comments-comment-box, [componentkey^="commentBox-"], [data-testid="ui-core-tiptap-text-editor-wrapper"]')) return true;
 
     const label = [
       box.getAttribute('aria-label'),
@@ -575,12 +609,12 @@ const butterflyLastFillTime = new WeakMap();
 
     if (box.querySelector('[contenteditable="true"]')) {
       return box.querySelector(
-        '.ql-editor[contenteditable="true"], [data-lexical-editor="true"][contenteditable="true"], div[role="textbox"][contenteditable="true"], [contenteditable="true"]'
+        '.ql-editor[contenteditable="true"], [data-lexical-editor="true"][contenteditable="true"], .tiptap.ProseMirror[contenteditable="true"], .ProseMirror[contenteditable="true"][role="textbox"], div[role="textbox"][contenteditable="true"], [contenteditable="true"]'
       );
     }
 
     const nestedEditor = box.querySelector(
-      '.ql-editor[contenteditable="true"], [data-lexical-editor="true"][contenteditable="true"], div[role="textbox"][contenteditable="true"]'
+      '.ql-editor[contenteditable="true"], [data-lexical-editor="true"][contenteditable="true"], .tiptap.ProseMirror[contenteditable="true"], .ProseMirror[contenteditable="true"][role="textbox"], div[role="textbox"][contenteditable="true"]'
     );
     return nestedEditor || box;
   }
@@ -856,11 +890,12 @@ const butterflyLastFillTime = new WeakMap();
     document.body.appendChild(dropdown);
     
     // Insert after the Refine button or after the comment box
-    const refineBtn = box.parentElement.querySelector('.butterfly-refine-btn');
+    const uiScope = findUiContainerScope(box);
+    const refineBtn = uiScope.querySelector('.butterfly-refine-btn');
     if (refineBtn) {
       refineBtn.parentElement.insertBefore(variantsContainer, refineBtn.nextSibling);
     } else {
-      const uiContainer = box.parentElement.querySelector('.butterfly-ui-container');
+      const uiContainer = uiScope.querySelector('.butterfly-ui-container');
       if (uiContainer) {
         uiContainer.appendChild(variantsContainer);
       }
@@ -868,7 +903,7 @@ const butterflyLastFillTime = new WeakMap();
   }
   
   function addInteractionButtons(box, postElement, suggestBtnInstance, suggestions = null) {
-    const uiContainer = box.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]');
+    const uiContainer = findUiContainerScope(box).querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]');
     if (!uiContainer) {
       console.error("[Butterfly] UI container not found for interaction buttons.");
       return;
@@ -974,8 +1009,9 @@ const butterflyLastFillTime = new WeakMap();
     suggestBtn.style.cssText = 'background-color: SlateBlue; color: white; padding: 6px 12px; border: 1px solid #40528A; border-radius: 5px; margin-left: 5px; margin-top: 5px; cursor: pointer; font-size: 0.85em; font-weight: 500;';
     uiContainer.appendChild(suggestBtn);
     
-    // Insert container after comment box
-    box.parentElement.insertBefore(uiContainer, box.nextSibling);
+    // Insert container next to the editor inside LinkedIn's current composer.
+    const insertionTarget = findUiInsertionTarget(box, composer);
+    insertionTarget.parent.insertBefore(uiContainer, insertionTarget.nextSibling);
     
     // Add click handler
     suggestBtn.onclick = async (e) => {
