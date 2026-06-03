@@ -617,13 +617,63 @@ const butterflyLastFillTime = new WeakMap();
     }
   }
 
+  function captureScrollState() {
+    return {
+      windowX: window.scrollX,
+      windowY: window.scrollY,
+      documentElementLeft: document.documentElement ? document.documentElement.scrollLeft : 0,
+      documentElementTop: document.documentElement ? document.documentElement.scrollTop : 0,
+      bodyLeft: document.body ? document.body.scrollLeft : 0,
+      bodyTop: document.body ? document.body.scrollTop : 0,
+      scrollingElementLeft: document.scrollingElement ? document.scrollingElement.scrollLeft : 0,
+      scrollingElementTop: document.scrollingElement ? document.scrollingElement.scrollTop : 0
+    };
+  }
+
+  function restoreScrollState(scrollState) {
+    if (!scrollState) return;
+
+    window.scrollTo(scrollState.windowX, scrollState.windowY);
+    if (document.documentElement) {
+      document.documentElement.scrollLeft = scrollState.documentElementLeft;
+      document.documentElement.scrollTop = scrollState.documentElementTop;
+    }
+    if (document.body) {
+      document.body.scrollLeft = scrollState.bodyLeft;
+      document.body.scrollTop = scrollState.bodyTop;
+    }
+    if (document.scrollingElement) {
+      document.scrollingElement.scrollLeft = scrollState.scrollingElementLeft;
+      document.scrollingElement.scrollTop = scrollState.scrollingElementTop;
+    }
+  }
+
+  function restoreScrollStateAfterLinkedInUpdates(scrollState) {
+    restoreScrollState(scrollState);
+    requestAnimationFrame(() => {
+      restoreScrollState(scrollState);
+      requestAnimationFrame(() => restoreScrollState(scrollState));
+    });
+  }
+
+  function focusWithoutScrolling(element) {
+    try {
+      element.focus({ preventScroll: true });
+    } catch (error) {
+      element.focus();
+    }
+  }
+
   function setContentEditableValue(box, value) {
+    const scrollState = captureScrollState();
+
     if (setLexicalEditorValue(box, value)) {
       box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+      restoreScrollStateAfterLinkedInUpdates(scrollState);
       return;
     }
 
-    box.focus();
+    focusWithoutScrolling(box);
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(box);
@@ -643,6 +693,7 @@ const butterflyLastFillTime = new WeakMap();
 
     box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
     box.dispatchEvent(new Event('change', { bubbles: true }));
+    restoreScrollStateAfterLinkedInUpdates(scrollState);
   }
 
   function setCommentBoxValue(box, value) {
