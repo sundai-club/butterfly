@@ -690,24 +690,62 @@ const butterflyLastFillTime = new WeakMap();
     });
   }
 
-  function focusWithoutScrolling(element) {
-    try {
-      element.focus({ preventScroll: true });
-    } catch (error) {
-      element.focus();
+  function dispatchEditorInputEvents(box, value) {
+    box.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: value }));
+    box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function setContentEditableDomValue(box, value) {
+    const lines = String(value || '').split('\n');
+    const fragment = document.createDocumentFragment();
+
+    lines.forEach((line) => {
+      const paragraph = document.createElement('p');
+      if (line) {
+        paragraph.appendChild(document.createTextNode(line));
+      } else {
+        paragraph.appendChild(document.createElement('br'));
+      }
+      fragment.appendChild(paragraph);
+    });
+
+    box.replaceChildren(fragment);
+    box.classList.remove('is-empty', 'is-editor-empty');
+
+    const placeholder = box.querySelector('[data-placeholder]');
+    if (placeholder) {
+      placeholder.classList.remove('is-empty', 'is-editor-empty');
     }
   }
 
-  function setContentEditableValue(box, value) {
+  function setContentEditableValue(box, value, options = {}) {
     const scrollState = captureScrollState();
+    const shouldAvoidFocus = options.avoidFocus === true;
+
+    if (shouldAvoidFocus && document.activeElement === box) {
+      box.blur();
+    }
 
     if (setLexicalEditorValue(box, value)) {
-      box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+      dispatchEditorInputEvents(box, value);
       restoreScrollStateAfterLinkedInUpdates(scrollState);
       return;
     }
 
-    focusWithoutScrolling(box);
+    if (shouldAvoidFocus || box.classList.contains('ProseMirror')) {
+      setContentEditableDomValue(box, value);
+      dispatchEditorInputEvents(box, value);
+      restoreScrollStateAfterLinkedInUpdates(scrollState);
+      return;
+    }
+
+    try {
+      box.focus({ preventScroll: true });
+    } catch (error) {
+      box.focus();
+      restoreScrollState(scrollState);
+    }
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(box);
@@ -725,14 +763,13 @@ const butterflyLastFillTime = new WeakMap();
     endRange.collapse(false);
     selection.addRange(endRange);
 
-    box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
-    box.dispatchEvent(new Event('change', { bubbles: true }));
+    dispatchEditorInputEvents(box, value);
     restoreScrollStateAfterLinkedInUpdates(scrollState);
   }
 
-  function setCommentBoxValue(box, value) {
+  function setCommentBoxValue(box, value, options = {}) {
     if (box.isContentEditable) {
-      setContentEditableValue(box, value);
+      setContentEditableValue(box, value, options);
     } else {
       box.value = value;
       box.dispatchEvent(new Event('input', { bubbles: true }));
@@ -763,13 +800,13 @@ const butterflyLastFillTime = new WeakMap();
         console.error('[Butterfly] Auto-suggestion error:', result.error);
         // Display error message directly in the comment field
         const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage);
+        setCommentBoxValue(box, errorMessage, { avoidFocus: true });
       } else if (result.disabled) {
         removeLinkedInUI();
         return;
       } else if (result.suggestions && result.suggestions.length > 0) {
         // Use the first suggestion as the default
-        setCommentBoxValue(box, result.suggestions[0]);
+        setCommentBoxValue(box, result.suggestions[0], { avoidFocus: true });
         console.log('[Butterfly] Auto-suggestion applied.');
         addInteractionButtons(box, postElement, suggestBtn, result.suggestions);
         addVariantsDropdown(box, result.suggestions, 0);
