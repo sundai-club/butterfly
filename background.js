@@ -16,6 +16,9 @@ const MODEL_CHAINS = {
 };
 const MAX_TRANSIENT_RETRIES_PER_MODEL = 2;
 const TRANSIENT_RETRY_DELAYS_MS = [700, 1600];
+const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
+const GEMINI_MODEL_COOLDOWNS = new Map();
+const GEMINI_MODEL_REQUESTS = new Map();
 const MODEL_ALIASES = {
   'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
   'gemini-3-pro-preview': 'gemini-3.1-pro-preview'
@@ -109,8 +112,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Check for common API key issues
             if (e.message.includes('API_KEY_INVALID') || e.message.includes('403')) {
               errorMessage = 'Invalid Gemini API key.\n\nWhat to do:\n1. Click the Butterfly extension icon in your browser toolbar.\n2. Paste a valid key from Google AI Studio.\n3. Click "check" and try again.';
-            } else if (e.message.includes('QUOTA_EXCEEDED') || e.message.includes('429')) {
-              errorMessage = 'Gemini quota or rate limit reached.\n\nWhat to do:\n1. Wait a few minutes and click "Suggest Comment" again.\n2. If this keeps happening, open Butterfly settings and switch between Flash (free) and Pro (paid).\n3. Check your usage in Google AI Studio.';
+            } else if (isGeminiRateLimitedError(e)) {
+              const retryAfterText = formatRetryAfter(e.retryAfterMs);
+              errorMessage = `Gemini quota or rate limit reached.${retryAfterText ? `\n\nTry again in about ${retryAfterText}.` : ''}\n\nWhat to do:\n1. Wait and click "Suggest Comment" again.\n2. If this keeps happening, open Butterfly settings and switch between Flash (free) and Pro (paid).\n3. Check your usage in Google AI Studio.`;
             } else if (isTransientGeminiError(e)) {
               errorMessage = 'Gemini is temporarily unavailable.\n\nWhat to do:\n1. Click "Suggest Comment" again in a moment.\n2. If it keeps failing, open Butterfly settings and switch between Flash (free) and Pro (paid).\n3. Check Google AI Studio status/usage if the issue persists.';
             } else if (e.message.includes('400')) {
@@ -188,26 +192,104 @@ function isModelUnavailableError(error) {
 function isTransientGeminiError(error) {
   if (!error) return false;
   const message = String(error.message || error).toLowerCase();
-  return error.status === 429 ||
-    error.status === 500 ||
+  return error.status === 500 ||
     error.status === 502 ||
     error.status === 503 ||
     error.status === 504 ||
     message.includes('service is currently unavailable') ||
     message.includes('temporarily unavailable') ||
     message.includes('try again later') ||
-    message.includes('overloaded') ||
-    message.includes('quota');
+    message.includes('overloaded');
+}
+
+function isGeminiRateLimitedError(error) {
+  if (!error) return false;
+  const message = String(error.message || error).toLowerCase();
+  return error.status === 429 ||
+    error.apiCode === 'RESOURCE_EXHAUSTED' ||
+    error.quotaExceeded === true ||
+    message.includes('quota') ||
+    message.includes('rate limit') ||
+    message.includes('resource_exhausted');
 }
 
 function isRetryableModelFailure(error) {
   return isModelUnavailableError(error) ||
+    isGeminiRateLimitedError(error) ||
     isTransientGeminiError(error) ||
     Boolean(error && error.retryNextModel);
 }
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getModelCooldownKey(apiKey, model) {
+  return `${apiKey || ''}:${model}`;
+}
+
+function setModelCooldown(apiKey, model, retryAfterMs) {
+  const cooldownMs = Math.max(retryAfterMs || 0, DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+  GEMINI_MODEL_COOLDOWNS.set(getModelCooldownKey(apiKey, model), Date.now() + cooldownMs);
+  return cooldownMs;
+}
+
+function getRemainingModelCooldownMs(apiKey, model) {
+  const cooldownUntil = GEMINI_MODEL_COOLDOWNS.get(getModelCooldownKey(apiKey, model)) || 0;
+  const remainingMs = cooldownUntil - Date.now();
+  if (remainingMs <= 0) {
+    GEMINI_MODEL_COOLDOWNS.delete(getModelCooldownKey(apiKey, model));
+    return 0;
+  }
+  return remainingMs;
+}
+
+function createModelCooldownError(model, remainingMs) {
+  const error = new Error(`Gemini model ${model} is rate-limited. Try again in about ${formatRetryAfter(remainingMs)}.`);
+  error.status = 429;
+  error.apiCode = 'RESOURCE_EXHAUSTED';
+  error.quotaExceeded = true;
+  error.retryAfterMs = remainingMs;
+  error.retryNextModel = true;
+  return error;
+}
+
+function getRetryDelayMsFromGeminiError(data) {
+  const details = data && data.error && Array.isArray(data.error.details) ? data.error.details : [];
+  for (const detail of details) {
+    if (detail && typeof detail.retryDelay === 'string') {
+      const parsed = parseRetryDelayMs(detail.retryDelay);
+      if (parsed) return parsed;
+    }
+  }
+
+  const message = data && data.error && data.error.message ? data.error.message : '';
+  const retryMatch = String(message).match(/retry\s+in\s+([\d.]+)\s*s/i);
+  if (retryMatch) return Math.ceil(Number(retryMatch[1]) * 1000);
+
+  return 0;
+}
+
+function hasQuotaFailure(data) {
+  const details = data && data.error && Array.isArray(data.error.details) ? data.error.details : [];
+  return details.some(detail => {
+    return detail &&
+      (String(detail['@type'] || '').includes('QuotaFailure') ||
+        Array.isArray(detail.violations));
+  });
+}
+
+function parseRetryDelayMs(value) {
+  const match = String(value || '').trim().match(/^([\d.]+)s$/i);
+  return match ? Math.ceil(Number(match[1]) * 1000) : 0;
+}
+
+function formatRetryAfter(ms) {
+  if (!ms || ms <= 0) return '';
+  const totalSeconds = Math.max(1, Math.ceil(ms / 1000));
+  if (totalSeconds < 60) return `${totalSeconds} second${totalSeconds === 1 ? '' : 's'}`;
+  const minutes = Math.ceil(totalSeconds / 60);
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
 function getToneInstruction(commentTone) {
@@ -256,7 +338,34 @@ async function fetchGeminiSuggestions(site = 'linkedin', postText, postAuthor, a
 }
 
 async function fetchGeminiSuggestionsWithRetry(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone) {
+  const requestKey = getModelCooldownKey(apiKey, model);
+  const previousRequest = GEMINI_MODEL_REQUESTS.get(requestKey);
+  if (previousRequest) {
+    try {
+      await previousRequest;
+    } catch (error) {
+      // The next request will re-check cooldown/error state below.
+    }
+  }
+
+  const request = fetchGeminiSuggestionsWithRetryUnlocked(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone);
+  GEMINI_MODEL_REQUESTS.set(requestKey, request);
+
+  try {
+    return await request;
+  } finally {
+    if (GEMINI_MODEL_REQUESTS.get(requestKey) === request) {
+      GEMINI_MODEL_REQUESTS.delete(requestKey);
+    }
+  }
+}
+
+async function fetchGeminiSuggestionsWithRetryUnlocked(site, postText, postAuthor, apiKey, model, refinement, currentComment, customPrompts, endWithQuestion, commentLength, commentTone) {
   let lastError;
+  const remainingCooldownMs = getRemainingModelCooldownMs(apiKey, model);
+  if (remainingCooldownMs > 0) {
+    throw createModelCooldownError(model, remainingCooldownMs);
+  }
 
   for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES_PER_MODEL; attempt++) {
     try {
@@ -424,6 +533,12 @@ ${refinement}
       const error = new Error(errorMessage);
       error.status = res.status;
       error.apiCode = data && data.error && data.error.status;
+      error.quotaExceeded = res.status === 429 || hasQuotaFailure(data);
+      error.retryAfterMs = getRetryDelayMsFromGeminiError(data);
+      if (isGeminiRateLimitedError(error)) {
+        error.retryAfterMs = setModelCooldown(apiKey, model, error.retryAfterMs);
+        error.retryNextModel = true;
+      }
       throw error;
     }
     

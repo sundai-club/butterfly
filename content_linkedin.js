@@ -36,17 +36,47 @@ function showContextInvalidatedMessage() {
   setTimeout(() => message.remove(), 10000);
 }
 
-function showInlineStatus(uiContainer, message) {
+function showInlineStatus(uiContainer, message, title = '') {
   if (!uiContainer) return;
   const existing = uiContainer.querySelector('.butterfly-inline-status');
   if (existing) existing.remove();
   
-  const status = document.createElement('span');
+  const status = document.createElement('div');
   status.className = 'butterfly-inline-status';
-  status.textContent = `${message}?`;
-  status.title = 'Enable LinkedIn in Butterfly settings: click the 🦋 icon, check "LinkedIn", then try again.';
-  status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
+  status.textContent = message;
+  status.title = title || message;
+  status.style.cssText = [
+    'flex-basis: 100%',
+    'margin: 6px 0 0 5px',
+    'padding: 6px 8px',
+    'border: 1px solid #f4c7c7',
+    'border-left: 3px solid #d93025',
+    'border-radius: 4px',
+    'background: #fef7f7',
+    'color: #5f2120',
+    'font-size: 12px',
+    'line-height: 1.35',
+    'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+  ].join('; ');
   uiContainer.appendChild(status);
+}
+
+function showSuggestionError(box, message) {
+  const uiContainer = box && box.dataset && box.dataset.butterflyId
+    ? document.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]')
+    : null;
+  const fullMessage = String(message || 'Failed to generate comment');
+  const shortMessage = fullMessage.split('\n').map(part => part.trim()).find(Boolean) || 'Failed to generate comment';
+  showInlineStatus(uiContainer, shortMessage, fullMessage);
+}
+
+function clearSuggestionError(box) {
+  const uiContainer = box && box.dataset && box.dataset.butterflyId
+    ? document.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]')
+    : null;
+  if (!uiContainer) return;
+  const existing = uiContainer.querySelector('.butterfly-inline-status');
+  if (existing) existing.remove();
 }
 
 let linkedinEnabled = true;
@@ -547,8 +577,9 @@ const butterflyLastFillTime = new WeakMap();
   }
 
   function findCommentComposer(box) {
-    return box.closest('.comments-comment-box, .social-details-social-comment-box, form.comments-comment-box, [componentkey^="commentBox-"]')
-      || box.closest('.comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor, [data-testid="ui-core-tiptap-text-editor-wrapper"]')
+    return box.closest('.comments-comment-box, .comments-comment-box__form, .social-details-social-comment-box, form.comments-comment-box, [componentkey^="commentBox-"]')
+      || box.closest('.comments-comment-texteditor')
+      || box.closest('.comments-comment-texteditor__content, .comments-comment-box-comment__text-editor, [data-testid="ui-core-tiptap-text-editor-wrapper"]')
       || box.parentElement;
   }
 
@@ -556,29 +587,74 @@ const butterflyLastFillTime = new WeakMap();
     return findCommentComposer(box) || box.parentElement || document.body;
   }
 
-  function findUiInsertionTarget(box, composer) {
-    const editorWrapper = box.closest(
+  function getLinkedInEditorWrapper(box) {
+    return box.closest(
       '[data-testid="ui-core-tiptap-text-editor-wrapper"], .comments-comment-texteditor, .comments-comment-texteditor__content, .comments-comment-box-comment__text-editor'
     );
+  }
+
+  function getLinkedInEditorBlock(box) {
+    const editorWrapper = getLinkedInEditorWrapper(box);
+    if (!editorWrapper) return null;
+
+    return editorWrapper.closest('.comments-comment-texteditor, [data-testid="ui-core-tiptap-text-editor-wrapper"]') || editorWrapper;
+  }
+
+  function applyUiContainerPlacementStyles(uiContainer, placement) {
+    uiContainer.dataset.butterflyPlacement = placement;
+    uiContainer.classList.remove('butterfly-ui-container--linkedin-toolbar');
+    uiContainer.style.cssText = 'display: flex; align-items: center; margin-top: 5px; flex-wrap: wrap;';
+  }
+
+  function findUiInsertionTarget(box, composer) {
+    const editorBlock = getLinkedInEditorBlock(box);
+    if (editorBlock && editorBlock !== composer && editorBlock.parentElement && composer.contains(editorBlock)) {
+      return {
+        parent: editorBlock.parentElement,
+        nextSibling: editorBlock.nextSibling,
+        placement: 'block'
+      };
+    }
+
+    const editorWrapper = getLinkedInEditorWrapper(box);
 
     if (editorWrapper && composer.contains(editorWrapper)) {
+      const editorRow = editorWrapper.parentElement && composer.contains(editorWrapper.parentElement)
+        ? editorWrapper.parentElement
+        : editorWrapper;
       return {
-        parent: editorWrapper.parentElement || composer,
-        nextSibling: editorWrapper.nextSibling
+        parent: editorRow.parentElement || composer,
+        nextSibling: editorRow.nextSibling,
+        placement: 'block'
       };
     }
 
     if (box.parentElement && composer.contains(box.parentElement)) {
       return {
         parent: box.parentElement,
-        nextSibling: box.nextSibling
+        nextSibling: box.nextSibling,
+        placement: 'block'
       };
     }
 
     return {
       parent: composer,
-      nextSibling: null
+      nextSibling: null,
+      placement: 'block'
     };
+  }
+
+  function placeUiContainer(uiContainer, box, composer) {
+    const insertionTarget = findUiInsertionTarget(box, composer);
+    applyUiContainerPlacementStyles(uiContainer, insertionTarget.placement);
+
+    const nextSibling = insertionTarget.nextSibling === uiContainer
+      ? uiContainer.nextSibling
+      : insertionTarget.nextSibling;
+
+    if (uiContainer.parentElement !== insertionTarget.parent || uiContainer.nextSibling !== nextSibling) {
+      insertionTarget.parent.insertBefore(uiContainer, nextSibling);
+    }
   }
 
   function isLinkedInCommentBox(box) {
@@ -826,16 +902,14 @@ const butterflyLastFillTime = new WeakMap();
       // Hide refine button if it exists
       const uiContainer = suggestBtn.parentElement;
       uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.style.display = 'none');
+      clearSuggestionError(box);
       
       const { postText, postAuthor } = extractPostInfo(postElement, box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       
       if (result.error) {
         console.error('[Butterfly] Auto-suggestion error:', result.error);
-        // Display error message directly in the comment field
-        const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage, { avoidFocus: true });
-        releaseComposerFocusAfterLinkedInUpdates(box);
+        showSuggestionError(box, result.error);
       } else if (result.disabled) {
         removeLinkedInUI();
         return;
@@ -964,11 +1038,11 @@ const butterflyLastFillTime = new WeakMap();
     
     // Insert after the Refine button or after the comment box
     const uiScope = findUiContainerScope(box);
+    const uiContainer = uiScope.querySelector('.butterfly-ui-container');
     const refineBtn = uiScope.querySelector('.butterfly-refine-btn');
     if (refineBtn) {
       refineBtn.parentElement.insertBefore(variantsContainer, refineBtn.nextSibling);
     } else {
-      const uiContainer = uiScope.querySelector('.butterfly-ui-container');
       if (uiContainer) {
         uiContainer.appendChild(variantsContainer);
       }
@@ -1023,11 +1097,10 @@ const butterflyLastFillTime = new WeakMap();
       // Get the current value of the comment box
       let currentComment = box.isContentEditable ? getElementText(box) : box.value;
       const { postText, postAuthor } = extractPostInfo(postElement, box);
+      clearSuggestionError(box);
       const result = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
       if (result.error) {
-        // Display error message directly in the comment field
-        const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage);
+        showSuggestionError(box, result.error);
       } else if (result.disabled) {
         removeLinkedInUI();
         return;
@@ -1061,7 +1134,10 @@ const butterflyLastFillTime = new WeakMap();
       existingContainers.forEach((container, index) => {
         if (index > 0) container.remove();
       });
+      existingContainers[0].dataset.commentboxId = box.dataset.butterflyId;
+      placeUiContainer(existingContainers[0], box, composer);
       composer.dataset.butterflyInjected = 'true';
+      box.dataset.butterflyInjected = 'true';
       return;
     }
 
@@ -1073,7 +1149,6 @@ const butterflyLastFillTime = new WeakMap();
     const uiContainer = document.createElement('div');
     uiContainer.className = 'butterfly-ui-container';
     uiContainer.dataset.commentboxId = box.dataset.butterflyId;
-    uiContainer.style.cssText = 'display: flex; align-items: center; margin-top: 5px; flex-wrap: wrap;';
     
     // Create suggest button
     const suggestBtn = document.createElement('button');
@@ -1082,9 +1157,8 @@ const butterflyLastFillTime = new WeakMap();
     suggestBtn.style.cssText = 'background-color: SlateBlue; color: white; padding: 6px 12px; border: 1px solid #40528A; border-radius: 5px; margin-left: 5px; margin-top: 5px; cursor: pointer; font-size: 0.85em; font-weight: 500;';
     uiContainer.appendChild(suggestBtn);
     
-    // Insert container next to the editor inside LinkedIn's current composer.
-    const insertionTarget = findUiInsertionTarget(box, composer);
-    insertionTarget.parent.insertBefore(uiContainer, insertionTarget.nextSibling);
+    // Keep Butterfly outside LinkedIn's native editor/toolbar flex row.
+    placeUiContainer(uiContainer, box, composer);
     
     // Add click handler
     suggestBtn.onclick = async (e) => {
@@ -1104,11 +1178,10 @@ const butterflyLastFillTime = new WeakMap();
       suggestBtn.disabled = true;
       suggestBtn.textContent = 'Thinking...';
       const { postText, postAuthor } = extractPostInfo(postElement, box);
+      clearSuggestionError(box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       if (result.error) {
-        // Display error message directly in the comment field
-        const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage);
+        showSuggestionError(box, result.error);
       } else if (result.disabled) {
         removeLinkedInUI();
         return;
@@ -1152,6 +1225,11 @@ const butterflyLastFillTime = new WeakMap();
             composer.querySelectorAll('.butterfly-ui-container').forEach((container, index) => {
               if (index > 0) container.remove();
             });
+          }
+          const existingUiContainer = postElement ? composer.querySelector('.butterfly-ui-container') : null;
+          if (existingUiContainer) {
+            existingUiContainer.dataset.commentboxId = box.dataset.butterflyId;
+            placeUiContainer(existingUiContainer, box, composer);
           }
           if (postElement && !composer.dataset.butterflyInjected) {
             injectUI(box, postElement);
