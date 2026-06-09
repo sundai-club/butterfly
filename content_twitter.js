@@ -82,17 +82,48 @@ function showContextInvalidatedMessage() {
   setTimeout(() => message.remove(), 10000);
 }
 
-function showInlineStatus(uiContainer, message) {
+function showInlineStatus(uiContainer, message, title = '') {
   if (!uiContainer) return;
   const existing = uiContainer.querySelector('.butterfly-inline-status');
   if (existing) existing.remove();
   
-  const status = document.createElement('span');
+  const status = document.createElement('div');
   status.className = 'butterfly-inline-status';
-  status.textContent = `${message}?`;
-  status.title = 'Enable Twitter/X in Butterfly settings: click the 🦋 icon, check "Twitter/X (experimental)", then try again.';
-  status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
+  status.textContent = message;
+  status.title = title || message;
+  status.style.cssText = [
+    'flex-basis: 100%',
+    'margin: 6px 0 0 5px',
+    'padding: 6px 8px',
+    'border: 1px solid #f4c7c7',
+    'border-left: 3px solid #d93025',
+    'border-radius: 4px',
+    'background: #fef7f7',
+    'color: #5f2120',
+    'font-size: 12px',
+    'line-height: 1.35',
+    'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+  ].join('; ');
   uiContainer.appendChild(status);
+}
+
+function getTwitterUiContainer(commentBox) {
+  if (!commentBox || !commentBox.dataset || !commentBox.dataset.butterflyId) return null;
+  return commentBox.parentElement
+    ? commentBox.parentElement.querySelector('.butterfly-ui-container[data-commentbox-id="' + commentBox.dataset.butterflyId + '"]')
+    : document.querySelector('.butterfly-ui-container[data-commentbox-id="' + commentBox.dataset.butterflyId + '"]');
+}
+
+function showSuggestionError(commentBox, message) {
+  const fullMessage = String(message || 'Failed to generate comment');
+  const shortMessage = fullMessage.split('\n').map(part => part.trim()).find(Boolean) || 'Failed to generate comment';
+  showInlineStatus(getTwitterUiContainer(commentBox), shortMessage, fullMessage);
+}
+
+function clearSuggestionError(commentBox) {
+  const uiContainer = getTwitterUiContainer(commentBox);
+  const existing = uiContainer && uiContainer.querySelector('.butterfly-inline-status');
+  if (existing) existing.remove();
 }
 
 let twitterEnabled = false;
@@ -285,13 +316,12 @@ async function performInitialAutoSuggestion(commentBox, tweetElement, suggestBtn
     uiContainer.querySelectorAll('.butterfly-twitter-refine-btn').forEach(btn => btn.style.display = 'none');
 
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
+    clearSuggestionError(commentBox);
     const result = await getGeminiSuggestionForTwitter(postText, postAuthor);
 
     if (result.error) {
       console.error('[Butterfly Twitter] Auto-suggestion error:', result.error);
-      // Display error message directly in the comment field
-      const errorMessage = `[Error: ${result.error}]`;
-      setCommentBoxValue(commentBox, errorMessage);
+      showSuggestionError(commentBox, result.error);
     } else if (result.disabled) {
       removeTwitterUI();
       return;
@@ -498,11 +528,10 @@ function addInteractionButtons(commentBox, tweetElement, suggestBtnInstance, sug
     
     let currentComment = commentBox.isContentEditable ? commentBox.innerText : commentBox.value;
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
+    clearSuggestionError(commentBox);
     const result = await getGeminiSuggestionForTwitter(postText, postAuthor, instructions, currentComment);
     if (result.error) {
-      // Display error message directly in the comment field
-      const errorMessage = `[Error: ${result.error}]`;
-      setCommentBoxValue(commentBox, errorMessage);
+      showSuggestionError(commentBox, result.error);
     } else if (result.disabled) {
       removeTwitterUI();
       return;
@@ -560,11 +589,10 @@ function injectUI(commentBox, tweetElement) {
     suggestBtn.disabled = true;
     suggestBtn.textContent = 'Thinking...';
     const { postText, postAuthor } = extractTweetInfo(tweetElement);
+    clearSuggestionError(commentBox);
     const result = await getGeminiSuggestionForTwitter(postText, postAuthor);
     if (result.error) {
-      // Display error message directly in the comment field
-      const errorMessage = `[Error: ${result.error}]`;
-      setCommentBoxValue(commentBox, errorMessage);
+      showSuggestionError(commentBox, result.error);
     } else if (result.disabled) {
       removeTwitterUI();
       return;

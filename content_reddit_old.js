@@ -42,17 +42,48 @@ function setCommentBoxValue(box, value) {
   box.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function showInlineStatus(uiContainer, message) {
+function showInlineStatus(uiContainer, message, title = '') {
   if (!uiContainer) return;
   const existing = uiContainer.querySelector('.butterfly-inline-status');
   if (existing) existing.remove();
   
-  const status = document.createElement('span');
+  const status = document.createElement('div');
   status.className = 'butterfly-inline-status';
-  status.textContent = `${message}?`;
-  status.title = 'Enable Reddit in Butterfly settings: click the 🦋 icon, check "Reddit (old.reddit.com)", then try again.';
-  status.style.cssText = 'margin-left: 8px; font-size: 12px; color: #6b7280; text-decoration: underline dotted; cursor: help;';
+  status.textContent = message;
+  status.title = title || message;
+  status.style.cssText = [
+    'flex-basis: 100%',
+    'margin: 6px 0 0 5px',
+    'padding: 6px 8px',
+    'border: 1px solid #f4c7c7',
+    'border-left: 3px solid #d93025',
+    'border-radius: 4px',
+    'background: #fef7f7',
+    'color: #5f2120',
+    'font-size: 12px',
+    'line-height: 1.35',
+    'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+  ].join('; ');
   uiContainer.appendChild(status);
+}
+
+function getRedditUiContainer(box) {
+  const form = box && box.closest ? box.closest('form.usertext') : null;
+  return form && box.dataset && box.dataset.butterflyId
+    ? form.querySelector('.butterfly-ui-container[data-commentbox-id="' + box.dataset.butterflyId + '"]')
+    : null;
+}
+
+function showSuggestionError(box, message) {
+  const fullMessage = String(message || 'Failed to generate comment');
+  const shortMessage = fullMessage.split('\n').map(part => part.trim()).find(Boolean) || 'Failed to generate comment';
+  showInlineStatus(getRedditUiContainer(box), shortMessage, fullMessage);
+}
+
+function clearSuggestionError(box) {
+  const uiContainer = getRedditUiContainer(box);
+  const existing = uiContainer && uiContainer.querySelector('.butterfly-inline-status');
+  if (existing) existing.remove();
 }
 
 function extractPostInfo(box) {
@@ -185,11 +216,11 @@ function refreshRedditEnabled() {
       uiContainer.querySelectorAll('.butterfly-refine-btn').forEach(btn => btn.style.display = 'none');
       
       const { postText, postAuthor } = extractPostInfo(box);
+      clearSuggestionError(box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       
       if (result.error) {
-        const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage);
+        showSuggestionError(box, result.error);
       } else if (result.disabled) {
         removeRedditUI();
         return;
@@ -331,10 +362,10 @@ function refreshRedditEnabled() {
       
       const currentComment = box.value;
       const { postText, postAuthor } = extractPostInfo(box);
+      clearSuggestionError(box);
       const result = await getGeminiSuggestion(postText, postAuthor, instructions, currentComment);
       if (result.error) {
-        const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage);
+        showSuggestionError(box, result.error);
       } else if (result.disabled) {
         removeRedditUI();
         return;
@@ -420,10 +451,10 @@ function refreshRedditEnabled() {
       suggestBtn.disabled = true;
       suggestBtn.textContent = 'Thinking...';
       const { postText, postAuthor } = extractPostInfo(box);
+      clearSuggestionError(box);
       const result = await getGeminiSuggestion(postText, postAuthor);
       if (result.error) {
-        const errorMessage = `[Error: ${result.error}]`;
-        setCommentBoxValue(box, errorMessage);
+        showSuggestionError(box, result.error);
       } else if (result.disabled) {
         removeRedditUI();
         return;
