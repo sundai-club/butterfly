@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Butterfly",
-  "version": "1.95",
+  "version": "1.96",
   "description": "AI-powered comment suggestions for LinkedIn, Twitter/X, Product Hunt, and Reddit using Google Gemini.",
   "permissions": [
     "storage"
