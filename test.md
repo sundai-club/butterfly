@@ -21,6 +21,148 @@ Each surface must cover:
 - Clear any generated test text from editable fields after each test when feasible.
 - Use a cloned Chrome profile for remote debugging; do not inspect cookies, local storage, passwords, or API keys.
 
+## Browser Test Workflow
+
+Chrome 136+ ignores `--remote-debugging-port` when it is launched against the default user data directory. Test with a non-default user data directory. To preserve the real LinkedIn login without debugging the default profile directly, copy the profile to a temporary directory and launch Chrome against that clone.
+
+### 1. Prepare a cloned Chrome profile
+
+Close any old debug clone first:
+
+```bash
+pkill -9 -f '/tmp/butterfly-chrome-live-rd' || true
+rm -f /tmp/butterfly-chrome-live-rd/SingletonLock \
+  /tmp/butterfly-chrome-live-rd/SingletonSocket \
+  /tmp/butterfly-chrome-live-rd/SingletonCookie
+```
+
+If `/tmp/butterfly-chrome-live-rd` does not exist yet, create it from the real Chrome profile while Chrome is closed or idle:
+
+```bash
+rm -rf /tmp/butterfly-chrome-live-rd
+rsync -a \
+  --exclude='Singleton*' \
+  --exclude='Crashpad' \
+  --exclude='ShaderCache' \
+  --exclude='GrShaderCache' \
+  --exclude='GraphiteDawnCache' \
+  "$HOME/Library/Application Support/Google/Chrome/" \
+  /tmp/butterfly-chrome-live-rd/
+```
+
+### 2. Launch Chrome for isolated live LinkedIn testing
+
+Use `open -na` on macOS so this is a separate Chrome instance, not a handoff to the already-running app. Launch with extensions disabled when testing by direct script injection; this prevents the installed Butterfly extension from racing the current checkout.
+
+```bash
+open -na 'Google Chrome' --args \
+  --user-data-dir=/tmp/butterfly-chrome-live-rd \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port=9225 \
+  --disable-extensions \
+  --profile-directory=Default \
+  --new-window 'https://www.linkedin.com/feed/'
+```
+
+Confirm the debugging endpoint is available:
+
+```bash
+curl -fsS http://127.0.0.1:9225/json/list
+```
+
+### 3. Attach a browser automation client
+
+Use CDP, Playwright, or another browser client to attach to the LinkedIn page target from `http://127.0.0.1:9225/json/list`. The test runner must:
+
+- Navigate to each test URL.
+- Open a top-level comment composer or a reply composer.
+- Inject the current `content_linkedin.js`.
+- Provide a deterministic local `chrome.runtime` shim:
+
+```js
+const butterflyChromeShim = {
+  runtime: {
+    id: 'butterfly-test-runtime',
+    getURL: path => path,
+    sendMessage: (message, callback) => {
+      setTimeout(() => callback({
+        suggestions: [
+          'Butterfly test suggestion for this LinkedIn composer.',
+          'Second test suggestion.',
+          'Third test suggestion.',
+          'Fourth test suggestion.'
+        ],
+        debugPrompt: 'test prompt'
+      }), 120);
+    }
+  },
+  storage: {
+    sync: {
+      get: (keys, callback) => callback({
+        enabledPlatforms: { linkedin: true },
+        geminiApiKey: 'test-key',
+        geminiModel: 'flash',
+        commentLength: 1
+      })
+    }
+  }
+};
+```
+
+Evaluate the content script with the shim as a local variable so page or extension globals do not interfere:
+
+```js
+const source = await fs.promises.readFile('content_linkedin.js', 'utf8');
+Function('chrome', source)(butterflyChromeShim);
+```
+
+### 4. Validate each composer
+
+For each test case, assert these DOM facts after clicking only Butterfly's `Suggest Comment` button:
+
+- At least one `.butterfly-ui-container` is present.
+- The active editor contains `Butterfly test suggestion for this LinkedIn composer.`
+- The Butterfly UI is not contained by the editor element.
+- The Butterfly UI is not contained by `.comments-comment-texteditor`, `[data-testid="ui-core-tiptap-text-editor-wrapper"]`, or `.comments-comment-box-comment__text-editor`.
+- The Butterfly UI is not contained by LinkedIn's native emoji/photo toolbar row.
+- The editor does not contain `[Error`, `Gemini quota`, or `rate limit`.
+
+For the quota/error path, change the shim response to:
+
+```js
+callback({
+  error: 'Gemini quota or rate limit reached. Try again in 47s before generating another comment.'
+});
+```
+
+Then assert:
+
+- `.butterfly-inline-status` contains the quota message.
+- The LinkedIn editor remains blank.
+- No Gemini error text is written into the LinkedIn editor.
+
+### 5. Cleanup
+
+Clear generated text from all visible editors:
+
+```js
+for (const editor of document.querySelectorAll(
+  '.ql-editor[contenteditable="true"], [data-test-ql-editor-contenteditable="true"], [contenteditable="true"][role="textbox"]'
+)) {
+  editor.innerHTML = editor.classList.contains('ProseMirror') ? '<p></p>' : '<p><br></p>';
+  editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+}
+```
+
+Shut down only the temporary debug Chrome:
+
+```bash
+pkill -9 -f '/tmp/butterfly-chrome-live-rd' || true
+rm -f /tmp/butterfly-chrome-live-rd/SingletonLock \
+  /tmp/butterfly-chrome-live-rd/SingletonSocket \
+  /tmp/butterfly-chrome-live-rd/SingletonCookie
+```
+
 ## Test Matrix
 
 | ID | Surface | URL Strategy | Top-level Comment | Reply to Comment | Expected Result |
