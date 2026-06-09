@@ -6,7 +6,7 @@ Verify Butterfly comment UI on live LinkedIn surfaces without posting:
 
 - LinkedIn feed
 - Direct post page
-- Person profile/activity feed
+- Other person's profile/activity feed
 - Company page/feed
 
 Each surface must cover:
@@ -169,7 +169,7 @@ rm -f /tmp/butterfly-chrome-live-rd/SingletonLock \
 | --- | --- | --- | --- | --- | --- |
 | LI-01 | Feed | `https://www.linkedin.com/feed/` | Open visible post comment composer | Open visible reply composer under an existing comment | Butterfly controls appear below editor, suggestion fills editor only, no submit |
 | LI-02 | Direct post page | Known post permalink | Use visible comment composer | Open visible reply composer under an existing comment | Butterfly controls appear below editor, suggestion fills editor only, no submit |
-| LI-03 | Person feed | Current profile activity or visible person profile activity | Open visible post comment composer | Open visible reply composer under an existing comment | Butterfly controls appear below editor, suggestion fills editor only, no submit |
+| LI-03 | Other person's feed | A visible non-owner profile activity feed, not the logged-in user's own profile | Open visible post comment composer | Open visible reply composer under an existing comment | Butterfly controls appear below editor, suggestion fills editor only, no submit |
 | LI-04 | Company feed | Current accessible company page posts/feed | Open visible post comment composer | Open visible reply composer under an existing comment | Butterfly controls appear below editor, suggestion fills editor only, no submit |
 
 ## Per-Test Checks
@@ -213,8 +213,8 @@ Chrome setup:
 | LI-01 | Feed | `https://www.linkedin.com/feed/` | Reply to comment | Pass |
 | LI-02 | Direct post page | `https://www.linkedin.com/feed/update/urn:li:activity:7470141292304334848/` | Top-level comment | Pass |
 | LI-02 | Direct post page | `https://www.linkedin.com/feed/update/urn:li:activity:7470141292304334848/` | Reply to comment | Pass |
-| LI-03 | Person feed | `https://www.linkedin.com/in/vyahhi/recent-activity/all/` | Top-level comment | Pass |
-| LI-03 | Person feed | `https://www.linkedin.com/in/vyahhi/recent-activity/all/` | Reply to comment | Pass |
+| LI-03 | Other person's feed | `https://www.linkedin.com/in/eordax/recent-activity/all/` | Top-level comment | Pass |
+| LI-03 | Other person's feed | `https://www.linkedin.com/in/eordax/recent-activity/all/` | Reply to comment | Pass |
 | LI-04 | Company feed | `https://www.linkedin.com/company/mit-csail/posts/` | Top-level comment | Pass |
 | LI-04 | Company feed | `https://www.linkedin.com/company/mit-csail/posts/` | Reply to comment | Pass |
 | ERR-01 | Direct post page | `https://www.linkedin.com/feed/update/urn:li:activity:7470141292304334848/` | Quota/error path | Pass |
@@ -223,3 +223,4 @@ Notes:
 
 - An initial company-feed reply attempt on `https://www.linkedin.com/company/n-able/posts/` did not expose reply controls in the visible post, so it was not counted as a passing reply test.
 - The company-feed reply case was rerun on `https://www.linkedin.com/company/mit-csail/posts/`, where LinkedIn exposed real reply controls, and passed.
+- The person-feed case uses a non-owner profile activity feed. The earlier self-profile URL `https://www.linkedin.com/in/vyahhi/recent-activity/all/` was replaced with `https://www.linkedin.com/in/eordax/recent-activity/all/`, and both comment and reply checks were rerun successfully.
